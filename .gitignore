@@ -18,3 +18,4 @@ sdk/browser/dist/
 .mypy_cache/
 htmlcov/
 .coverage
+DEPLOYMENT.md

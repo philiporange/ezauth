@@ -53,5 +53,8 @@ class Settings(BaseSettings):
     confirmations_api_url: str = "https://api.confirmations.info"
     bot_auth_timestamp_tolerance: int = 300  # 5 minutes
 
+    # Custom tables
+    custom_tables_storage_limit_bytes: int = 104857600  # 100 MB
+
 
 settings = Settings()
