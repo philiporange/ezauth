@@ -1,0 +1,63 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar { width: 220px; background: #1a1a2e; color: #fff; padding: 20px 0; display: flex; flex-direction: column; position: fixed; height: 100vh; }
+.sidebar-brand { font-size: 18px; font-weight: 700; padding: 0 20px 20px; border-bottom: 1px solid #333; margin-bottom: 10px; }
+.sidebar a { color: #ccc; text-decoration: none; padding: 10px 20px; display: block; transition: background 0.2s; }
+.sidebar a:hover { background: #16213e; color: #fff; }
+.sidebar .logout { margin-top: auto; border-top: 1px solid #333; }
+
+/* Content */
+.content { margin-left: 220px; padding: 30px; flex: 1; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+h2 { font-size: 24px; font-weight: 600; margin-bottom: 20px; }
+
+/* Tables */
+table { width: 100%; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-collapse: collapse; }
+th { background: #f8f9fa; text-align: left; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #666; border-bottom: 2px solid #eee; }
+td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+tr:hover td { background: #fafafa; }
+
+/* Forms */
+label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 4px; margin-top: 16px; color: #555; }
+input[type="text"], input[type="email"], input[type="password"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 4px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
+button, .btn { display: inline-block; padding: 10px 20px; background: #3498db; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; text-decoration: none; transition: background 0.2s; }
+button:hover, .btn:hover { background: #2980b9; }
+.btn-primary { background: #3498db; }
+
+/* Badges */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.badge-dev { background: #fff3cd; color: #856404; }
+.badge-prod { background: #d4edda; color: #155724; }
+.bg-success { background: #d4edda; color: #155724; }
+.bg-warning { background: #fff3cd; color: #856404; }
+.bg-muted { background: #e9ecef; color: #6c757d; }
+
+/* Utility */
+.mono { font-family: 'SF Mono', Consolas, monospace; font-size: 13px; }
+dl { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+dt { font-weight: 600; font-size: 13px; color: #666; margin-top: 16px; }
+dt:first-child { margin-top: 0; }
+dd { margin: 4px 0 0 0; }
+.secret { filter: blur(4px); cursor: pointer; transition: filter 0.2s; }
+.secret.revealed { filter: none; }
+.actions { margin-top: 20px; display: flex; gap: 10px; }
+.inline-form { display: flex; gap: 10px; align-items: end; margin-bottom: 20px; }
+.inline-form input, .inline-form select { margin-bottom: 0; }
+.search-form { display: flex; gap: 10px; margin-bottom: 20px; }
+.search-form input { flex: 1; }
+.pagination { display: flex; gap: 10px; align-items: center; margin-top: 20px; justify-content: center; }
+.template-list { list-style: none; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.template-list li a { display: block; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; text-decoration: none; color: #333; }
+.template-list li a:hover { background: #fafafa; }
+.code-editor { font-family: 'SF Mono', Consolas, monospace; font-size: 13px; min-height: 400px; }
+.form-actions { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+.text-success { color: #155724; }
+.error { color: #dc3545; margin-bottom: 10px; }
+
+/* Login */
+.login-page { display: flex; align-items: center; justify-content: center; background: #1a1a2e; }
+.login-card { background: #fff; padding: 40px; border-radius: 12px; width: 380px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.login-card h1 { font-size: 24px; margin-bottom: 24px; text-align: center; }

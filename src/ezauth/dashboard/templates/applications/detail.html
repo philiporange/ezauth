@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block title %}{{ app.name }} - EZAuth{% endblock %}
+{% block content %}
+<h2>{{ app.name }}</h2>
+<dl>
+    <dt>ID</dt><dd class="mono">{{ app.id }}</dd>
+    <dt>Environment</dt><dd><span class="badge badge-{{ app.environment.value }}">{{ app.environment.value }}</span></dd>
+    <dt>Publishable Key</dt><dd class="mono">{{ app.publishable_key }}</dd>
+    <dt>Secret Key</dt><dd class="mono secret" onclick="this.classList.toggle('revealed')">{{ app.secret_key }}</dd>
+    <dt>Primary Domain</dt><dd>{{ app.primary_domain or '—' }}</dd>
+    <dt>Email From</dt><dd>{{ app.email_from_name or '' }} &lt;{{ app.email_from_address or '—' }}&gt;</dd>
+    <dt>JWK Kid</dt><dd class="mono">{{ app.jwk_kid }}</dd>
+    <dt>Created</dt><dd>{{ app.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+</dl>
+<div class="actions">
+    <a href="/dashboard/domains?app_id={{ app.id }}" class="btn">Domains</a>
+    <a href="/dashboard/users?app_id={{ app.id }}" class="btn">Users</a>
+</div>
+{% endblock %}

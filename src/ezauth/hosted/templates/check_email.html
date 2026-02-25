@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block title %}Check Your Email{% endblock %}
+{% block header_subtitle %}{% endblock %}
+{% block content %}
+    <div class="check-email">
+        <div class="check-email-icon">&#9993;</div>
+        <h2>Check your email</h2>
+        {% if type == "verify" %}
+            <p>We sent a verification link to <strong>{{ email }}</strong>.</p>
+            <p>Click the link to verify your email and sign in.</p>
+        {% elif type == "reset" %}
+            <p>We sent a sign-in link to <strong>{{ email }}</strong>.</p>
+            <p>Click the link to sign in without a password.</p>
+        {% else %}
+            <p>We sent a sign-in link to <strong>{{ email }}</strong>.</p>
+            <p>Click the link to sign in — no password needed.</p>
+        {% endif %}
+        <p class="auth-muted">
+            Didn't get the email? Check your spam folder or <a href="/auth/login">try again</a>.
+        </p>
+    </div>
+{% endblock %}

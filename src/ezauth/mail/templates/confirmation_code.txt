@@ -1,0 +1,9 @@
+Hi {{{ name }}},
+
+Use this code to continue:
+
+    {{{ confirmation_code }}}
+
+This code expires in 1 hour.
+
+If you didn't request this code, you can safely ignore this email.

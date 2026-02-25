@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block title %}{{ tenant.name }} - EZAuth{% endblock %}
+{% block content %}
+<h2>{{ tenant.name }}</h2>
+<dl>
+    <dt>ID</dt><dd class="mono">{{ tenant.id }}</dd>
+    <dt>Created</dt><dd>{{ tenant.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+</dl>
+<a href="/dashboard/applications?tenant_id={{ tenant.id }}" class="btn">View Applications</a>
+{% endblock %}

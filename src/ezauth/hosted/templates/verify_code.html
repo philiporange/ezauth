@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block title %}Enter Code{% endblock %}
+{% block header_subtitle %}<p>Check your email for a code</p>{% endblock %}
+{% block content %}
+    {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+
+    <p class="auth-description">We sent a 6-digit code to <strong>{{ email }}</strong>.</p>
+
+    <form method="post" action="/auth/verify-code">
+        <input type="hidden" name="email" value="{{ email }}">
+        <input type="hidden" name="redirect_url" value="{{ redirect_url or '' }}">
+
+        <label for="code">Verification code</label>
+        <input type="text" id="code" name="code" placeholder="000000" required autofocus
+               maxlength="6" pattern="\d{6}" inputmode="numeric" autocomplete="one-time-code"
+               class="code-input">
+
+        <button type="submit" class="btn btn-primary">Verify</button>
+    </form>
+
+    <p class="auth-muted">
+        Didn't get the code? Check your spam folder or <a href="/auth/login">try again</a>.
+    </p>
+{% endblock %}

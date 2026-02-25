@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block title %}Email Templates - EZAuth{% endblock %}
+{% block content %}
+<h2>Email Templates</h2>
+<ul class="template-list">
+    {% for name in template_files %}
+    <li><a href="/dashboard/email-templates/{{ name }}">{{ name }}</a></li>
+    {% endfor %}
+</ul>
+{% endblock %}

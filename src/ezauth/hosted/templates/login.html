@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block title %}Sign In{% endblock %}
+{% block header_subtitle %}<p>Sign in to your account</p>{% endblock %}
+{% block content %}
+    {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="/auth/login">
+        <input type="hidden" name="redirect_url" value="{{ redirect_url or '' }}">
+
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="{{ email or '' }}" placeholder="you@example.com" required autofocus>
+
+        {% if passwords_enabled %}
+            <label for="password">Password</label>
+            <div class="password-wrapper">
+                <input type="password" id="password" name="password" placeholder="Enter your password">
+                <button type="button" class="password-toggle" id="toggle-password" aria-label="Show password">
+                    <svg id="icon-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg id="icon-hide" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+            </div>
+
+            <button type="submit" name="strategy" value="password" class="btn btn-primary">Sign In</button>
+
+            <p class="auth-forgot">
+                <a href="/auth/forgot-password{% if redirect_url %}?redirect_url={{ redirect_url }}{% endif %}">Forgot password?</a>
+            </p>
+        {% else %}
+            <button type="submit" name="strategy" value="magic_link" class="btn btn-primary">Send Sign-In Link</button>
+        {% endif %}
+    </form>
+
+    <p class="auth-footer">
+        Don't have an account? <a href="/auth/signup{% if redirect_url %}?redirect_url={{ redirect_url }}{% endif %}">Sign up</a>
+    </p>
+
+    {% if passwords_enabled %}
+    <script>
+    (function() {
+        var pw = document.getElementById('password');
+        var btn = document.getElementById('toggle-password');
+        var iconShow = document.getElementById('icon-show');
+        var iconHide = document.getElementById('icon-hide');
+        btn.addEventListener('click', function() {
+            var showing = pw.type === 'text';
+            pw.type = showing ? 'password' : 'text';
+            iconShow.style.display = showing ? '' : 'none';
+            iconHide.style.display = showing ? 'none' : '';
+            btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+            pw.focus();
+        });
+    })();
+    </script>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,5 @@
+{{{main}}}
+
+--
+Sent by {{{ app_name }}}
+Powered by EZAuth (https://ezauth.org)

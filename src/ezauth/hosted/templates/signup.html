@@ -1,0 +1,94 @@
+{% extends "layout.html" %}
+{% block title %}Sign Up{% endblock %}
+{% block header_subtitle %}<p>Create your account</p>{% endblock %}
+{% block content %}
+    {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="/auth/signup" id="signup-form">
+        <input type="hidden" name="redirect_url" value="{{ redirect_url or '' }}">
+
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="{{ email or '' }}" placeholder="you@example.com" required autofocus>
+
+        {% if passwords_enabled %}
+            <label for="password">Password</label>
+            <div class="password-wrapper">
+                <input type="password" id="password" name="password" placeholder="Choose a password" required minlength="8">
+                <button type="button" class="password-toggle" id="toggle-password" aria-label="Show password">
+                    <svg id="icon-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg id="icon-hide" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+            </div>
+            <div class="password-strength" id="strength-container" style="display:none">
+                <div class="password-strength-bar">
+                    <div class="password-strength-fill" id="strength-fill"></div>
+                </div>
+                <span class="password-strength-label" id="strength-label"></span>
+            </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary">Sign Up</button>
+    </form>
+
+    <p class="auth-footer">
+        Already have an account? <a href="/auth/login{% if redirect_url %}?redirect_url={{ redirect_url }}{% endif %}">Sign in</a>
+    </p>
+
+    {% if passwords_enabled %}
+    <script>
+    (function() {
+        var pw = document.getElementById('password');
+        var fill = document.getElementById('strength-fill');
+        var label = document.getElementById('strength-label');
+        var container = document.getElementById('strength-container');
+        var btn = document.getElementById('toggle-password');
+        var iconShow = document.getElementById('icon-show');
+        var iconHide = document.getElementById('icon-hide');
+
+        var levels = [
+            { cls: '',       text: '' },
+            { cls: 'weak',   text: 'Weak' },
+            { cls: 'fair',   text: 'Fair' },
+            { cls: 'good',   text: 'Good' },
+            { cls: 'strong', text: 'Strong' },
+        ];
+
+        function score(p) {
+            if (!p) return 0;
+            var s = 0;
+            if (p.length >= 8) s++;
+            if (p.length >= 12) s++;
+            if (/[a-z]/.test(p) && /[A-Z]/.test(p)) s++;
+            if (/\d/.test(p)) s++;
+            if (/[^a-zA-Z0-9]/.test(p)) s++;
+            if (p.length < 6) return Math.min(s, 1);
+            return Math.min(s, 4);
+        }
+
+        pw.addEventListener('input', function() {
+            var val = pw.value;
+            if (!val) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = '';
+            var s = score(val);
+            var lvl = levels[s];
+            fill.className = 'password-strength-fill' + (lvl.cls ? ' ' + lvl.cls : '');
+            fill.style.width = (s * 25) + '%';
+            label.textContent = lvl.text;
+            label.className = 'password-strength-label' + (lvl.cls ? ' ' + lvl.cls : '');
+        });
+
+        btn.addEventListener('click', function() {
+            var showing = pw.type === 'text';
+            pw.type = showing ? 'password' : 'text';
+            iconShow.style.display = showing ? '' : 'none';
+            iconHide.style.display = showing ? 'none' : '';
+            btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+            pw.focus();
+        });
+    })();
+    </script>
+    {% endif %}
+{% endblock %}

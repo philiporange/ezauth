@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block title %}Applications - EZAuth{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>Applications</h2>
+    <a href="/dashboard/applications/new" class="btn btn-primary">New Application</a>
+</div>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Environment</th>
+            <th>Publishable Key</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for app in apps %}
+        <tr>
+            <td><a href="/dashboard/applications/{{ app.id }}">{{ app.name }}</a></td>
+            <td><span class="badge badge-{{ app.environment.value }}">{{ app.environment.value }}</span></td>
+            <td class="mono">{{ app.publishable_key }}</td>
+            <td>{{ app.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

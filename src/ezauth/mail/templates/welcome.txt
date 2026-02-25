@@ -1,0 +1,7 @@
+Hi,
+
+Welcome to {{{ app_name }}}! Your email has been verified and your account is ready to go.
+
+If you have any questions, feel free to reach out to our support team.
+
+Thanks for joining!

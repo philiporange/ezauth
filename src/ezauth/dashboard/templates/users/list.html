@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+{% block title %}Users - EZAuth{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>Users ({{ total }})</h2>
+</div>
+
+<form method="get" class="search-form">
+    {% if app_id %}<input type="hidden" name="app_id" value="{{ app_id }}">{% endif %}
+    <input type="text" name="search" placeholder="Search by email..." value="{{ search or '' }}">
+    <button type="submit">Search</button>
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>Verified</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for u in users %}
+        <tr>
+            <td>{{ u.email }}</td>
+            <td>
+                {% if u.email_verified_at %}
+                <span class="badge bg-success">Yes</span>
+                {% else %}
+                <span class="badge bg-muted">No</span>
+                {% endif %}
+            </td>
+            <td>{{ u.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if total > 50 %}
+<div class="pagination">
+    {% if page > 1 %}<a href="?page={{ page - 1 }}{% if app_id %}&app_id={{ app_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">Prev</a>{% endif %}
+    <span>Page {{ page }}</span>
+    {% if total > page * 50 %}<a href="?page={{ page + 1 }}{% if app_id %}&app_id={{ app_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">Next</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

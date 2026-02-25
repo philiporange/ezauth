@@ -1,0 +1,365 @@
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        'Helvetica Neue', Arial, sans-serif;
+    background: #f5f7fb;
+    color: #1a1a2e;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    line-height: 1.5;
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 420px;
+}
+
+.auth-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 24px rgba(0, 0, 0, 0.04);
+    padding: 40px 36px;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.auth-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+}
+
+.auth-header p {
+    font-size: 15px;
+    color: #6b7280;
+}
+
+/* Form */
+
+label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+label .optional {
+    font-weight: 400;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    color: #1a1a2e;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    margin-bottom: 20px;
+}
+
+input:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+input::placeholder {
+    color: #9ca3af;
+}
+
+/* Password field with toggle */
+
+.password-wrapper {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.password-wrapper input {
+    margin-bottom: 0;
+    padding-right: 44px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #9ca3af;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.password-toggle:hover {
+    color: #4b5563;
+}
+
+/* Buttons */
+
+.btn {
+    display: block;
+    width: 100%;
+    padding: 11px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.btn:active {
+    transform: scale(0.99);
+}
+
+.btn-primary {
+    background: #4f46e5;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #4338ca;
+}
+
+.btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.btn-secondary:hover {
+    background: #e5e7eb;
+}
+
+/* Divider */
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+}
+
+.auth-divider span {
+    padding: 0 14px;
+    font-size: 13px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Password strength meter */
+
+.password-strength {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: -12px;
+    margin-bottom: 20px;
+}
+
+.password-strength-bar {
+    flex: 1;
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.password-strength-fill {
+    height: 100%;
+    width: 0;
+    border-radius: 2px;
+    transition: width 0.25s, background 0.25s;
+}
+
+.password-strength-fill.weak { background: #ef4444; }
+.password-strength-fill.fair { background: #f59e0b; }
+.password-strength-fill.good { background: #22c55e; }
+.password-strength-fill.strong { background: #16a34a; }
+
+.password-strength-label {
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 44px;
+    text-align: right;
+}
+
+.password-strength-label.weak { color: #ef4444; }
+.password-strength-label.fair { color: #f59e0b; }
+.password-strength-label.good { color: #22c55e; }
+.password-strength-label.strong { color: #16a34a; }
+
+/* Error */
+
+.auth-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+/* Forgot password */
+
+.auth-forgot {
+    text-align: right;
+    margin-top: -12px;
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.auth-forgot a {
+    color: #4f46e5;
+    text-decoration: none;
+}
+
+.auth-forgot a:hover {
+    text-decoration: underline;
+}
+
+/* Description text */
+
+.auth-description {
+    font-size: 15px;
+    color: #6b7280;
+    margin-bottom: 24px;
+}
+
+/* Footer links */
+
+.auth-footer {
+    text-align: center;
+    font-size: 14px;
+    color: #6b7280;
+    margin-top: 24px;
+}
+
+.auth-footer a {
+    color: #4f46e5;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Check email page */
+
+.check-email {
+    text-align: center;
+}
+
+.check-email-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    line-height: 1;
+}
+
+.check-email h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.check-email p {
+    font-size: 15px;
+    color: #4b5563;
+    margin-bottom: 8px;
+}
+
+.check-email strong {
+    color: #1a1a2e;
+}
+
+/* Code input */
+
+.code-input {
+    font-size: 28px !important;
+    font-weight: 700;
+    letter-spacing: 0.5em;
+    text-align: center;
+    padding: 14px 20px !important;
+    font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+}
+
+.code-input::placeholder {
+    letter-spacing: 0.3em;
+    font-weight: 400;
+    opacity: 0.4;
+}
+
+.auth-muted {
+    font-size: 13px;
+    color: #9ca3af;
+    margin-top: 20px;
+}
+
+.auth-muted a {
+    color: #4f46e5;
+    text-decoration: none;
+}
+
+.auth-muted a:hover {
+    text-decoration: underline;
+}
+
+/* Powered by */
+
+.powered-by {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.powered-by a {
+    color: #6b7280;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.powered-by a:hover {
+    color: #4f46e5;
+}

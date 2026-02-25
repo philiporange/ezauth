@@ -1,0 +1,7 @@
+Hi,
+
+Please verify your email address by visiting this link:
+
+{{{ verify_url }}}
+
+If you didn't create an account, you can safely ignore this email.

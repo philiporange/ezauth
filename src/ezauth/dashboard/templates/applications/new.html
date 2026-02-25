@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block title %}New Application - EZAuth{% endblock %}
+{% block content %}
+<h2>Create Application</h2>
+<form method="post" action="/dashboard/applications">
+    <label for="tenant_id">Tenant</label>
+    <select id="tenant_id" name="tenant_id" required>
+        {% for t in tenants %}
+        <option value="{{ t.id }}">{{ t.name }}</option>
+        {% endfor %}
+    </select>
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" required>
+    <label for="environment">Environment</label>
+    <select id="environment" name="environment">
+        <option value="dev">Development</option>
+        <option value="prod">Production</option>
+    </select>
+    <label for="primary_domain">Primary Domain (optional)</label>
+    <input type="text" id="primary_domain" name="primary_domain">
+    <label for="email_from_name">Email From Name (optional)</label>
+    <input type="text" id="email_from_name" name="email_from_name">
+    <label for="email_from_address">Email From Address (optional)</label>
+    <input type="email" id="email_from_address" name="email_from_address">
+    <button type="submit">Create</button>
+</form>
+{% endblock %}

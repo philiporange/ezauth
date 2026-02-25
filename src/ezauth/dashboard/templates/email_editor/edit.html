@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block title %}Edit {{ name }} - EZAuth{% endblock %}
+{% block content %}
+<h2>Edit: {{ name }}</h2>
+<form hx-post="/dashboard/email-templates/{{ name }}" hx-target="#save-status" hx-swap="innerHTML">
+    <textarea name="content" rows="25" class="code-editor">{{ content }}</textarea>
+    <div class="form-actions">
+        <button type="submit">Save</button>
+        <span id="save-status"></span>
+    </div>
+</form>
+{% endblock %}

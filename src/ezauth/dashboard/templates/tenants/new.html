@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block title %}New Tenant - EZAuth{% endblock %}
+{% block content %}
+<h2>Create Tenant</h2>
+<form method="post" action="/dashboard/tenants">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" required>
+    <button type="submit">Create</button>
+</form>
+{% endblock %}

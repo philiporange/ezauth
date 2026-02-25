@@ -1,0 +1,17 @@
+{
+  "name": "@ezauth/browser",
+  "version": "0.1.0",
+  "description": "EZAuth browser SDK",
+  "main": "dist/ezauth.cjs.js",
+  "module": "dist/ezauth.esm.js",
+  "browser": "dist/ezauth.iife.js",
+  "files": ["dist"],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w"
+  },
+  "devDependencies": {
+    "@rollup/plugin-terser": "^0.4",
+    "rollup": "^4.0"
+  }
+}
