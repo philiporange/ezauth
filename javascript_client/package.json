@@ -1,0 +1,25 @@
+{
+  "name": "@ezauth/client",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "EZAuth universal JavaScript client – frontend auth & backend admin",
+  "main": "dist/ezauth.cjs",
+  "module": "dist/ezauth.esm.js",
+  "browser": "dist/ezauth.iife.js",
+  "exports": {
+    ".": {
+      "import": "./dist/ezauth.esm.js",
+      "require": "./dist/ezauth.cjs",
+      "default": "./dist/ezauth.esm.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w"
+  },
+  "devDependencies": {
+    "@rollup/plugin-terser": "^0.4",
+    "rollup": "^4.0"
+  }
+}
