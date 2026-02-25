@@ -212,6 +212,7 @@ async def update_column(
         col.position = position
 
     await db.flush()
+    await db.refresh(col)
     return col
 
 
