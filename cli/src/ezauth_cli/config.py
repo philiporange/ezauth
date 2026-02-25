@@ -10,6 +10,7 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 class CLIConfig:
     server_url: str = ""
     publishable_key: str = ""
+    secret_key: str = ""
     access_token: str = ""
     refresh_token: str = ""
     email: str = ""

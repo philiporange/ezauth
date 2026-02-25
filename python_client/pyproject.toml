@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ezauth-client"
+version = "0.1.0"
+description = "Python client library for EZAuth"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ezauth_client"]
