@@ -1,6 +1,6 @@
 import Foundation
 
-/// Table and column CRUD (secret key).
+/// Table and column CRUD.
 public struct Tables: Sendable {
     let client: BaseClient
 
@@ -17,7 +17,8 @@ public struct Tables: Sendable {
             TableDetailResponse.self,
             path: "/v1/tables",
             method: "POST",
-            body: CreateTableRequest(name: name, columns: columns)
+            body: CreateTableRequest(name: name, columns: columns),
+            auth: .auto
         )
     }
 
@@ -26,7 +27,8 @@ public struct Tables: Sendable {
     public func list() async throws -> TableListResponse {
         try await client.fetch(
             TableListResponse.self,
-            path: "/v1/tables"
+            path: "/v1/tables",
+            auth: .auto
         )
     }
 
@@ -35,7 +37,8 @@ public struct Tables: Sendable {
     public func get(_ tableId: String) async throws -> TableDetailResponse {
         try await client.fetch(
             TableDetailResponse.self,
-            path: "/v1/tables/\(tableId.urlPathEncoded)"
+            path: "/v1/tables/\(tableId.urlPathEncoded)",
+            auth: .auto
         )
     }
 
@@ -44,7 +47,8 @@ public struct Tables: Sendable {
     public func delete(_ tableId: String) async throws {
         try await client.fetch(
             path: "/v1/tables/\(tableId.urlPathEncoded)",
-            method: "DELETE"
+            method: "DELETE",
+            auth: .auto
         )
     }
 }
@@ -72,7 +76,8 @@ public struct Columns: Sendable {
                 required: required,
                 default_value: defaultValue,
                 position: position
-            )
+            ),
+            auth: .auto
         )
     }
 
@@ -93,14 +98,16 @@ public struct Columns: Sendable {
                 required: required,
                 default_value: defaultValue,
                 position: position
-            )
+            ),
+            auth: .auto
         )
     }
 
     public func delete(tableId: String, columnId: String) async throws {
         try await client.fetch(
             path: "/v1/tables/\(tableId.urlPathEncoded)/columns/\(columnId.urlPathEncoded)",
-            method: "DELETE"
+            method: "DELETE",
+            auth: .auto
         )
     }
 }

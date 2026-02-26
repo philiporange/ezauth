@@ -3,7 +3,11 @@ export class Storage {
     this._client = client;
   }
 
-  get() {
-    return this._client._fetch('/v1/tables/storage');
+  tables() {
+    return this._client._fetch('/v1/tables/storage', { auth: 'auto' });
+  }
+
+  objects() {
+    return this._client._fetch('/v1/buckets/storage', { auth: 'auto' });
   }
 }

@@ -247,6 +247,7 @@ async def insert_row(
     app_id: uuid.UUID,
     table_id: uuid.UUID,
     data: dict[str, Any],
+    user_id: uuid.UUID | None = None,
     storage_limit: int = DEFAULT_STORAGE_LIMIT,
 ) -> CustomRow:
     await _get_table_or_raise(db, app_id=app_id, table_id=table_id)
@@ -269,7 +270,7 @@ async def insert_row(
 
     validated_data = _validate_row_data(data, columns)
 
-    row = CustomRow(app_id=app_id, table_id=table_id, data=validated_data)
+    row = CustomRow(app_id=app_id, table_id=table_id, data=validated_data, user_id=user_id)
     db.add(row)
     await db.flush()
 
@@ -283,14 +284,16 @@ async def get_row(
     app_id: uuid.UUID,
     table_id: uuid.UUID,
     row_id: uuid.UUID,
+    user_id: uuid.UUID | None = None,
 ) -> CustomRow:
-    result = await db.execute(
-        select(CustomRow).where(
-            CustomRow.id == row_id,
-            CustomRow.table_id == table_id,
-            CustomRow.app_id == app_id,
-        )
+    q = select(CustomRow).where(
+        CustomRow.id == row_id,
+        CustomRow.table_id == table_id,
+        CustomRow.app_id == app_id,
     )
+    if user_id is not None:
+        q = q.where(CustomRow.user_id == user_id)
+    result = await db.execute(q)
     row = result.scalars().first()
     if row is None:
         raise AuthError("Row not found", code="not_found")
@@ -305,10 +308,11 @@ async def update_row(
     table_id: uuid.UUID,
     row_id: uuid.UUID,
     data: dict[str, Any],
+    user_id: uuid.UUID | None = None,
     storage_limit: int = DEFAULT_STORAGE_LIMIT,
 ) -> CustomRow:
     columns = await _load_columns(db, table_id=table_id)
-    row = await get_row(db, app_id=app_id, table_id=table_id, row_id=row_id)
+    row = await get_row(db, app_id=app_id, table_id=table_id, row_id=row_id, user_id=user_id)
 
     validated_partial = _validate_row_data_partial(data, columns)
 
@@ -332,8 +336,9 @@ async def delete_row(
     app_id: uuid.UUID,
     table_id: uuid.UUID,
     row_id: uuid.UUID,
+    user_id: uuid.UUID | None = None,
 ) -> None:
-    row = await get_row(db, app_id=app_id, table_id=table_id, row_id=row_id)
+    row = await get_row(db, app_id=app_id, table_id=table_id, row_id=row_id, user_id=user_id)
     await db.delete(row)
     await db.flush()
     await _invalidate_storage_cache(redis, app_id=app_id)
@@ -344,6 +349,7 @@ async def query_rows(
     *,
     app_id: uuid.UUID,
     table_id: uuid.UUID,
+    user_id: uuid.UUID | None = None,
     filter_spec: dict | None = None,
     sort_field: str | None = None,
     sort_dir: str = "asc",
@@ -357,6 +363,8 @@ async def query_rows(
         CustomRow.app_id == app_id,
         CustomRow.table_id == table_id,
     )
+    if user_id is not None:
+        q = q.where(CustomRow.user_id == user_id)
 
     if filter_spec is not None:
         filter_clause = _compile_filter(filter_spec, col_map)

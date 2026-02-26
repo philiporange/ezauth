@@ -10,7 +10,8 @@ from ezauth.api.frontend import (
     sessions as fe_sessions,
     sso,
 )
-from ezauth.api.backend import users, sessions as be_sessions, jwks, tables
+from ezauth.api.backend import users, sessions as be_sessions, jwks
+from ezauth.api import tables, objects
 
 api_router = APIRouter()
 
@@ -28,4 +29,7 @@ api_router.include_router(bots.router, prefix="/v1", tags=["frontend-bots"])
 api_router.include_router(users.router, prefix="/v1", tags=["backend-users"])
 api_router.include_router(be_sessions.router, prefix="/v1", tags=["backend-sessions"])
 api_router.include_router(jwks.router, tags=["backend-jwks"])
-api_router.include_router(tables.router, prefix="/v1", tags=["backend-tables"])
+
+# Unified auth routes (secret key or publishable key + session)
+api_router.include_router(tables.router, prefix="/v1", tags=["tables"])
+api_router.include_router(objects.router, prefix="/v1", tags=["objects"])

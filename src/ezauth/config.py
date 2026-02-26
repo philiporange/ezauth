@@ -56,5 +56,14 @@ class Settings(BaseSettings):
     # Custom tables
     custom_tables_storage_limit_bytes: int = 104857600  # 100 MB
 
+    # S3 object storage
+    s3_endpoint_url: str = ""
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_bucket_name: str = ""
+    s3_region: str = "us-east-1"
+    object_storage_max_object_bytes: int = 52428800  # 50 MB
+    object_storage_limit_bytes: int = 1073741824  # 1 GB per app
+
 
 settings = Settings()

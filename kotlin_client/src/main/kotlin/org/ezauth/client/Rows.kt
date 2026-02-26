@@ -4,21 +4,27 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
-/** Row CRUD and query operations (secret key). */
+/** Row CRUD and query operations. */
 class Rows internal constructor(private val client: BaseClient) {
 
-    suspend fun insert(tableId: String, data: JsonObject): RowResponse {
-        val body = jsonObject("data" to data)
+    suspend fun insert(tableId: String, data: JsonObject, userId: String? = null): RowResponse {
+        val entries = mutableMapOf<String, JsonElement>("data" to data)
+        if (userId != null) entries["user_id"] = JsonPrimitive(userId)
+        val body = JsonObject(entries)
         val resp = client.fetch(
             "/v1/tables/${tableId.urlEncode()}/rows",
             method = "POST",
             body = body,
+            auth = AuthMode.AUTO,
         )
         return client.json.decodeFromJsonElement(RowResponse.serializer(), resp!!)
     }
 
     suspend fun get(tableId: String, rowId: String): RowResponse {
-        val resp = client.fetch("/v1/tables/${tableId.urlEncode()}/rows/${rowId.urlEncode()}")
+        val resp = client.fetch(
+            "/v1/tables/${tableId.urlEncode()}/rows/${rowId.urlEncode()}",
+            auth = AuthMode.AUTO,
+        )
         return client.json.decodeFromJsonElement(RowResponse.serializer(), resp!!)
     }
 
@@ -28,6 +34,7 @@ class Rows internal constructor(private val client: BaseClient) {
             "/v1/tables/${tableId.urlEncode()}/rows/${rowId.urlEncode()}",
             method = "PATCH",
             body = body,
+            auth = AuthMode.AUTO,
         )
         return client.json.decodeFromJsonElement(RowResponse.serializer(), resp!!)
     }
@@ -36,6 +43,7 @@ class Rows internal constructor(private val client: BaseClient) {
         client.fetch(
             "/v1/tables/${tableId.urlEncode()}/rows/${rowId.urlEncode()}",
             method = "DELETE",
+            auth = AuthMode.AUTO,
         )
     }
 
@@ -56,6 +64,7 @@ class Rows internal constructor(private val client: BaseClient) {
             "/v1/tables/${tableId.urlEncode()}/rows/query",
             method = "POST",
             body = body,
+            auth = AuthMode.AUTO,
         )
         return client.json.decodeFromJsonElement(RowListResponse.serializer(), resp!!)
     }

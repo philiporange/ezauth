@@ -1,17 +1,18 @@
 import Foundation
 
-/// Row CRUD and query operations (secret key).
+/// Row CRUD and query operations.
 public struct Rows: Sendable {
     let client: BaseClient
 
     // MARK: - Insert row
 
-    public func insert(tableId: String, data: [String: JSONValue]) async throws -> RowResponse {
+    public func insert(tableId: String, data: [String: JSONValue], userId: String? = nil) async throws -> RowResponse {
         try await client.fetch(
             RowResponse.self,
             path: "/v1/tables/\(tableId.urlPathEncoded)/rows",
             method: "POST",
-            body: CreateRowRequest(data: data)
+            body: CreateRowRequest(data: data, user_id: userId),
+            auth: .auto
         )
     }
 
@@ -20,7 +21,8 @@ public struct Rows: Sendable {
     public func get(tableId: String, rowId: String) async throws -> RowResponse {
         try await client.fetch(
             RowResponse.self,
-            path: "/v1/tables/\(tableId.urlPathEncoded)/rows/\(rowId.urlPathEncoded)"
+            path: "/v1/tables/\(tableId.urlPathEncoded)/rows/\(rowId.urlPathEncoded)",
+            auth: .auto
         )
     }
 
@@ -31,7 +33,8 @@ public struct Rows: Sendable {
             RowResponse.self,
             path: "/v1/tables/\(tableId.urlPathEncoded)/rows/\(rowId.urlPathEncoded)",
             method: "PATCH",
-            body: UpdateRowRequest(data: data)
+            body: UpdateRowRequest(data: data),
+            auth: .auto
         )
     }
 
@@ -40,7 +43,8 @@ public struct Rows: Sendable {
     public func delete(tableId: String, rowId: String) async throws {
         try await client.fetch(
             path: "/v1/tables/\(tableId.urlPathEncoded)/rows/\(rowId.urlPathEncoded)",
-            method: "DELETE"
+            method: "DELETE",
+            auth: .auto
         )
     }
 
@@ -57,7 +61,8 @@ public struct Rows: Sendable {
             RowListResponse.self,
             path: "/v1/tables/\(tableId.urlPathEncoded)/rows/query",
             method: "POST",
-            body: QueryRowsRequest(filter: filter, sort: sort, limit: limit, cursor: cursor)
+            body: QueryRowsRequest(filter: filter, sort: sort, limit: limit, cursor: cursor),
+            auth: .auto
         )
     }
 }
@@ -66,6 +71,7 @@ public struct Rows: Sendable {
 
 struct CreateRowRequest: Encodable {
     let data: [String: JSONValue]
+    let user_id: String?
 }
 
 struct UpdateRowRequest: Encodable {
@@ -74,6 +80,7 @@ struct UpdateRowRequest: Encodable {
 
 public struct RowResponse: Decodable, Sendable {
     public let id: String
+    public let user_id: String?
     public let data: [String: JSONValue]
     public let created_at: String
     public let updated_at: String

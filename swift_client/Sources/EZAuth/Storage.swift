@@ -1,13 +1,22 @@
 import Foundation
 
-/// Storage usage (secret key).
+/// Storage usage.
 public struct Storage: Sendable {
     let client: BaseClient
 
-    public func get() async throws -> StorageResponse {
+    public func tables() async throws -> StorageResponse {
         try await client.fetch(
             StorageResponse.self,
-            path: "/v1/tables/storage"
+            path: "/v1/tables/storage",
+            auth: .auto
+        )
+    }
+
+    public func objects() async throws -> StorageResponse {
+        try await client.fetch(
+            StorageResponse.self,
+            path: "/v1/buckets/storage",
+            auth: .auto
         )
     }
 }

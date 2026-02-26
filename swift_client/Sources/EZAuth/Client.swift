@@ -25,6 +25,7 @@ extension EZAuthError: LocalizedError {
 enum AuthMode {
     case secret
     case publishable
+    case auto
 }
 
 // MARK: - Base HTTP client
@@ -33,20 +34,22 @@ class BaseClient: @unchecked Sendable {
     let baseURL: String
     let secretKey: String?
     let publishableKey: String?
+    var accessToken: String?
     let session: URLSession
     let decoder: JSONDecoder
     let encoder: JSONEncoder
 
-    init(baseURL: String, secretKey: String?, publishableKey: String?, session: URLSession) {
+    init(baseURL: String, secretKey: String?, publishableKey: String?, accessToken: String?, session: URLSession) {
         self.baseURL = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
         self.secretKey = secretKey
         self.publishableKey = publishableKey
+        self.accessToken = accessToken
         self.session = session
         self.decoder = JSONDecoder()
         self.encoder = JSONEncoder()
     }
 
-    // MARK: - Core fetch
+    // MARK: - Core fetch (JSON)
 
     func fetch<T: Decodable>(
         _ type: T.Type,
@@ -64,7 +67,6 @@ class BaseClient: @unchecked Sendable {
         }
 
         if http.statusCode == 204 {
-            // For 204 No Content, try to return EmptyResponse if T matches, otherwise throw
             if let empty = EmptyResponse() as? T {
                 return empty
             }
@@ -108,7 +110,68 @@ class BaseClient: @unchecked Sendable {
         }
     }
 
-    // MARK: - Request builder
+    // MARK: - Raw data fetch (for binary upload/download)
+
+    func fetchData(
+        path: String,
+        method: String = "GET",
+        rawBody: Data? = nil,
+        contentType: String = "application/octet-stream",
+        auth: AuthMode = .auto,
+        query: [String: String?]? = nil
+    ) async throws -> (Data, HTTPURLResponse) {
+        let request = try buildRawRequest(
+            path: path, method: method, rawBody: rawBody,
+            contentType: contentType, auth: auth, query: query
+        )
+        let (data, response) = try await session.data(for: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw EZAuthError(message: "Invalid response", status: 0)
+        }
+
+        guard (200..<300).contains(http.statusCode) else {
+            let detail = try? decoder.decode(ErrorBody.self, from: data)
+            throw EZAuthError(
+                message: detail?.detail ?? "Request failed: \(http.statusCode)",
+                status: http.statusCode,
+                code: detail?.code
+            )
+        }
+
+        return (data, http)
+    }
+
+    // MARK: - Auth helpers
+
+    private func applyAuth(to request: inout URLRequest, mode: AuthMode) throws {
+        switch mode {
+        case .secret:
+            guard let key = secretKey else {
+                throw EZAuthError(message: "secretKey is required for this operation", status: 0, code: "missing_key")
+            }
+            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        case .publishable:
+            guard let key = publishableKey else {
+                throw EZAuthError(message: "publishableKey is required for this operation", status: 0, code: "missing_key")
+            }
+            request.setValue(key, forHTTPHeaderField: "X-Publishable-Key")
+        case .auto:
+            if let key = secretKey {
+                request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+            } else if let key = publishableKey {
+                request.setValue(key, forHTTPHeaderField: "X-Publishable-Key")
+                guard let token = accessToken else {
+                    throw EZAuthError(message: "accessToken is required for user operations", status: 0, code: "missing_token")
+                }
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            } else {
+                throw EZAuthError(message: "secretKey or publishableKey is required", status: 0, code: "missing_key")
+            }
+        }
+    }
+
+    // MARK: - Request builders
 
     private func buildRequest(
         path: String,
@@ -117,6 +180,48 @@ class BaseClient: @unchecked Sendable {
         auth: AuthMode,
         query: [String: String?]?
     ) throws -> URLRequest {
+        let url = try buildURL(path: path, query: query)
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        try applyAuth(to: &request, mode: auth)
+
+        if let body {
+            request.httpBody = try encoder.encode(body)
+        }
+
+        return request
+    }
+
+    private func buildRawRequest(
+        path: String,
+        method: String,
+        rawBody: Data?,
+        contentType: String,
+        auth: AuthMode,
+        query: [String: String?]?
+    ) throws -> URLRequest {
+        let url = try buildURL(path: path, query: query)
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+
+        if !contentType.isEmpty {
+            request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        }
+
+        try applyAuth(to: &request, mode: auth)
+
+        if let rawBody {
+            request.httpBody = rawBody
+        }
+
+        return request
+    }
+
+    private func buildURL(path: String, query: [String: String?]?) throws -> URL {
         var urlString = "\(baseURL)\(path)"
 
         if let query, !query.isEmpty {
@@ -137,28 +242,7 @@ class BaseClient: @unchecked Sendable {
             throw EZAuthError(message: "Invalid URL: \(urlString)", status: 0)
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        switch auth {
-        case .secret:
-            guard let key = secretKey else {
-                throw EZAuthError(message: "secretKey is required for this operation", status: 0, code: "missing_key")
-            }
-            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        case .publishable:
-            guard let key = publishableKey else {
-                throw EZAuthError(message: "publishableKey is required for this operation", status: 0, code: "missing_key")
-            }
-            request.setValue(key, forHTTPHeaderField: "X-Publishable-Key")
-        }
-
-        if let body {
-            request.httpBody = try encoder.encode(body)
-        }
-
-        return request
+        return url
     }
 }
 

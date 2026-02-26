@@ -17,6 +17,7 @@ class Columns {
           default_value: defaultValue ?? null,
           position: position ?? null,
         },
+        auth: 'auto',
       },
     );
   }
@@ -30,14 +31,14 @@ class Columns {
 
     return this._client._fetch(
       `/v1/tables/${encodeURIComponent(tableId)}/columns/${encodeURIComponent(columnId)}`,
-      { method: 'PATCH', body },
+      { method: 'PATCH', body, auth: 'auto' },
     );
   }
 
   delete(tableId, columnId) {
     return this._client._fetch(
       `/v1/tables/${encodeURIComponent(tableId)}/columns/${encodeURIComponent(columnId)}`,
-      { method: 'DELETE' },
+      { method: 'DELETE', auth: 'auto' },
     );
   }
 }
@@ -52,20 +53,21 @@ export class Tables {
   create({ name, columns } = {}) {
     const body = { name };
     if (columns !== undefined) body.columns = columns;
-    return this._client._fetch('/v1/tables', { method: 'POST', body });
+    return this._client._fetch('/v1/tables', { method: 'POST', body, auth: 'auto' });
   }
 
   list() {
-    return this._client._fetch('/v1/tables');
+    return this._client._fetch('/v1/tables', { auth: 'auto' });
   }
 
   get(tableId) {
-    return this._client._fetch(`/v1/tables/${encodeURIComponent(tableId)}`);
+    return this._client._fetch(`/v1/tables/${encodeURIComponent(tableId)}`, { auth: 'auto' });
   }
 
   delete(tableId) {
     return this._client._fetch(`/v1/tables/${encodeURIComponent(tableId)}`, {
       method: 'DELETE',
+      auth: 'auto',
     });
   }
 }

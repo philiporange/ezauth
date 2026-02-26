@@ -92,6 +92,7 @@ class ColumnResponse(BaseModel):
 
 class CreateRowRequest(BaseModel):
     data: dict[str, Any]
+    user_id: uuid.UUID | None = None
 
 
 class UpdateRowRequest(BaseModel):
@@ -100,6 +101,7 @@ class UpdateRowRequest(BaseModel):
 
 class RowResponse(BaseModel):
     id: uuid.UUID
+    user_id: uuid.UUID | None = None
     data: dict[str, Any]
     created_at: datetime
     updated_at: datetime

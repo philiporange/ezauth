@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, HTTPException
 
 from ezauth.config import settings
-from ezauth.dependencies import DbSession, RedisDep, SecretKeyApp
+from ezauth.dependencies import AppAuthDep, DbSession, RedisDep
 from ezauth.schemas.tables import (
     ColumnResponse,
     CreateColumnRequest,
@@ -25,14 +25,20 @@ from ezauth.services.auth import AuthError
 router = APIRouter()
 
 
+def _require_admin(auth: AppAuthDep) -> None:
+    if not auth.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
 # -- Tables --
 
 @router.post("/tables", response_model=TableDetailResponse, status_code=201)
 async def create_table(
     body: CreateTableRequest,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
 ):
+    _require_admin(auth)
     try:
         columns = None
         if body.columns:
@@ -47,7 +53,7 @@ async def create_table(
                 for c in body.columns
             ]
         table = await tables_svc.create_table(
-            db, app_id=app.id, name=body.name, columns=columns,
+            db, app_id=auth.app.id, name=body.name, columns=columns,
         )
         return table
     except AuthError as e:
@@ -59,23 +65,23 @@ async def create_table(
 @router.get("/tables", response_model=TableListResponse)
 async def list_tables(
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
 ):
-    tables, total = await tables_svc.list_tables(db, app_id=app.id)
+    tables, total = await tables_svc.list_tables(db, app_id=auth.app.id)
     return TableListResponse(
         tables=[TableResponse.model_validate(t) for t in tables],
         total=total,
     )
 
 
-# storage must come before {table_id} to avoid UUID parse conflict
 @router.get("/tables/storage", response_model=StorageResponse)
 async def get_storage(
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
     redis: RedisDep,
 ):
-    used = await tables_svc.get_storage_usage(db, redis, app_id=app.id)
+    _require_admin(auth)
+    used = await tables_svc.get_storage_usage(db, redis, app_id=auth.app.id)
     limit = settings.custom_tables_storage_limit_bytes
     return StorageResponse(
         used_bytes=used,
@@ -88,10 +94,10 @@ async def get_storage(
 async def get_table(
     table_id: uuid.UUID,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
 ):
     try:
-        table = await tables_svc.get_table(db, app_id=app.id, table_id=table_id)
+        table = await tables_svc.get_table(db, app_id=auth.app.id, table_id=table_id)
         return table
     except AuthError as e:
         raise HTTPException(status_code=404, detail=e.message)
@@ -101,10 +107,11 @@ async def get_table(
 async def delete_table(
     table_id: uuid.UUID,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
 ):
+    _require_admin(auth)
     try:
-        await tables_svc.delete_table(db, app_id=app.id, table_id=table_id)
+        await tables_svc.delete_table(db, app_id=auth.app.id, table_id=table_id)
     except AuthError as e:
         raise HTTPException(status_code=404, detail=e.message)
 
@@ -116,12 +123,13 @@ async def add_column(
     table_id: uuid.UUID,
     body: CreateColumnRequest,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
 ):
+    _require_admin(auth)
     try:
         col = await tables_svc.add_column(
             db,
-            app_id=app.id,
+            app_id=auth.app.id,
             table_id=table_id,
             name=body.name,
             type=body.type.value,
@@ -144,8 +152,9 @@ async def update_column(
     column_id: uuid.UUID,
     body: UpdateColumnRequest,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
 ):
+    _require_admin(auth)
     try:
         kwargs: dict = {}
         if body.name is not None:
@@ -159,7 +168,7 @@ async def update_column(
 
         col = await tables_svc.update_column(
             db,
-            app_id=app.id,
+            app_id=auth.app.id,
             table_id=table_id,
             column_id=column_id,
             **kwargs,
@@ -178,11 +187,12 @@ async def delete_column(
     table_id: uuid.UUID,
     column_id: uuid.UUID,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
 ):
+    _require_admin(auth)
     try:
         await tables_svc.delete_column(
-            db, app_id=app.id, table_id=table_id, column_id=column_id,
+            db, app_id=auth.app.id, table_id=table_id, column_id=column_id,
         )
     except AuthError as e:
         raise HTTPException(status_code=404, detail=e.message)
@@ -195,16 +205,22 @@ async def insert_row(
     table_id: uuid.UUID,
     body: CreateRowRequest,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
     redis: RedisDep,
 ):
     limit = settings.custom_tables_storage_limit_bytes
+    # Users auto-get their own user_id; admins can optionally specify one
+    if auth.is_admin:
+        row_user_id = body.user_id
+    else:
+        row_user_id = auth.user_id
     try:
         row = await tables_svc.insert_row(
             db, redis,
-            app_id=app.id,
+            app_id=auth.app.id,
             table_id=table_id,
             data=body.data,
+            user_id=row_user_id,
             storage_limit=limit,
         )
         return row
@@ -223,8 +239,10 @@ async def query_rows(
     table_id: uuid.UUID,
     body: QueryRowsRequest,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
 ):
+    # Users only see their own rows; admins see all
+    query_user_id = None if auth.is_admin else auth.user_id
     try:
         filter_spec = None
         if body.filter:
@@ -232,8 +250,9 @@ async def query_rows(
 
         rows, next_cursor = await tables_svc.query_rows(
             db,
-            app_id=app.id,
+            app_id=auth.app.id,
             table_id=table_id,
+            user_id=query_user_id,
             filter_spec=filter_spec,
             sort_field=body.sort.field if body.sort else None,
             sort_dir=body.sort.dir if body.sort else "asc",
@@ -257,11 +276,12 @@ async def get_row(
     table_id: uuid.UUID,
     row_id: uuid.UUID,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
 ):
+    row_user_id = None if auth.is_admin else auth.user_id
     try:
         row = await tables_svc.get_row(
-            db, app_id=app.id, table_id=table_id, row_id=row_id,
+            db, app_id=auth.app.id, table_id=table_id, row_id=row_id, user_id=row_user_id,
         )
         return row
     except AuthError as e:
@@ -274,17 +294,19 @@ async def update_row(
     row_id: uuid.UUID,
     body: UpdateRowRequest,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
     redis: RedisDep,
 ):
     limit = settings.custom_tables_storage_limit_bytes
+    row_user_id = None if auth.is_admin else auth.user_id
     try:
         row = await tables_svc.update_row(
             db, redis,
-            app_id=app.id,
+            app_id=auth.app.id,
             table_id=table_id,
             row_id=row_id,
             data=body.data,
+            user_id=row_user_id,
             storage_limit=limit,
         )
         return row
@@ -303,15 +325,17 @@ async def delete_row(
     table_id: uuid.UUID,
     row_id: uuid.UUID,
     db: DbSession,
-    app: SecretKeyApp,
+    auth: AppAuthDep,
     redis: RedisDep,
 ):
+    row_user_id = None if auth.is_admin else auth.user_id
     try:
         await tables_svc.delete_row(
             db, redis,
-            app_id=app.id,
+            app_id=auth.app.id,
             table_id=table_id,
             row_id=row_id,
+            user_id=row_user_id,
         )
     except AuthError as e:
         raise HTTPException(status_code=404, detail=e.message)

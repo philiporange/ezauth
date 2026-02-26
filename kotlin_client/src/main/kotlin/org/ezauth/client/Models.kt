@@ -126,6 +126,7 @@ data class TableDetailResponse(
 @Serializable
 data class RowResponse(
     val id: String,
+    val user_id: String? = null,
     val data: JsonObject,
     val created_at: String,
     val updated_at: String,
@@ -141,6 +142,41 @@ data class RowListResponse(
 data class SortSpec(
     val field: String,
     val dir: String = "asc",
+)
+
+// ── Buckets ─────────────────────────────────────────────────────────────────
+
+@Serializable
+data class BucketResponse(
+    val id: String,
+    val name: String,
+    val created_at: String,
+    val updated_at: String,
+)
+
+@Serializable
+data class BucketListResponse(
+    val buckets: List<BucketResponse>,
+    val total: Int,
+)
+
+// ── Objects ─────────────────────────────────────────────────────────────────
+
+@Serializable
+data class ObjectResponse(
+    val id: String,
+    val key: String,
+    val content_type: String,
+    val size_bytes: Long,
+    val user_id: String,
+    val created_at: String,
+    val updated_at: String,
+)
+
+@Serializable
+data class ObjectListResponse(
+    val objects: List<ObjectResponse>,
+    val next_cursor: String? = null,
 )
 
 // ── Storage ─────────────────────────────────────────────────────────────────

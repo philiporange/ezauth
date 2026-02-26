@@ -13,6 +13,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 
 /** Error thrown by all EZAuth client methods. */
 class EZAuthError(
@@ -24,7 +25,7 @@ class EZAuthError(
     val code: String? = null,
 ) : Exception(message)
 
-internal enum class AuthMode { SECRET, PUBLISHABLE }
+internal enum class AuthMode { SECRET, PUBLISHABLE, AUTO }
 
 private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
@@ -32,6 +33,7 @@ internal class BaseClient(
     baseUrl: String,
     val secretKey: String?,
     val publishableKey: String?,
+    var accessToken: String?,
     val httpClient: OkHttpClient,
 ) {
     val baseUrl: String = baseUrl.trimEnd('/')
@@ -71,6 +73,84 @@ internal class BaseClient(
         }
     }
 
+    /** Raw fetch that returns the OkHttp [Response]. Caller must close it. */
+    suspend fun fetchRaw(
+        path: String,
+        method: String = "GET",
+        rawBody: ByteArray? = null,
+        contentType: String = "application/octet-stream",
+        auth: AuthMode = AuthMode.AUTO,
+        query: Map<String, String?>? = null,
+    ): Response {
+        val urlBuilder = "$baseUrl$path".toHttpUrl().newBuilder()
+        query?.forEach { (key, value) ->
+            if (value != null) urlBuilder.addQueryParameter(key, value)
+        }
+
+        val requestBody = when {
+            rawBody != null -> rawBody.toRequestBody(contentType.toMediaType())
+            method in listOf("POST", "PATCH", "PUT") -> "".toRequestBody(null)
+            else -> null
+        }
+
+        val builder = Request.Builder()
+            .url(urlBuilder.build())
+            .method(method, requestBody)
+
+        if (contentType.isNotEmpty()) {
+            builder.header("Content-Type", contentType)
+        }
+
+        applyAuth(builder, auth)
+
+        val request = builder.build()
+        return withContext(Dispatchers.IO) {
+            val resp = httpClient.newCall(request).execute()
+            if (!resp.isSuccessful && resp.code != 204) {
+                resp.use { r ->
+                    val body = r.body?.string()
+                    val detail = body?.let {
+                        try { json.parseToJsonElement(it).jsonObject } catch (_: Exception) { null }
+                    }
+                    throw EZAuthError(
+                        message = detail?.get("detail")?.jsonPrimitive?.contentOrNull
+                            ?: "Request failed: ${r.code}",
+                        status = r.code,
+                        code = detail?.get("code")?.jsonPrimitive?.contentOrNull,
+                    )
+                }
+            }
+            resp
+        }
+    }
+
+    private fun applyAuth(builder: Request.Builder, auth: AuthMode) {
+        when (auth) {
+            AuthMode.SECRET -> {
+                val key = secretKey
+                    ?: throw EZAuthError("secretKey is required for this operation", 0, "missing_key")
+                builder.header("Authorization", "Bearer $key")
+            }
+            AuthMode.PUBLISHABLE -> {
+                val key = publishableKey
+                    ?: throw EZAuthError("publishableKey is required for this operation", 0, "missing_key")
+                builder.header("X-Publishable-Key", key)
+            }
+            AuthMode.AUTO -> {
+                if (secretKey != null) {
+                    builder.header("Authorization", "Bearer $secretKey")
+                } else if (publishableKey != null) {
+                    builder.header("X-Publishable-Key", publishableKey)
+                    val token = accessToken
+                        ?: throw EZAuthError("accessToken is required for user operations", 0, "missing_token")
+                    builder.header("Authorization", "Bearer $token")
+                } else {
+                    throw EZAuthError("secretKey or publishableKey is required", 0, "missing_key")
+                }
+            }
+        }
+    }
+
     private fun buildRequest(
         path: String,
         method: String,
@@ -95,18 +175,7 @@ internal class BaseClient(
             .method(method, requestBody)
             .header("Content-Type", "application/json")
 
-        when (auth) {
-            AuthMode.SECRET -> {
-                val key = secretKey
-                    ?: throw EZAuthError("secretKey is required for this operation", 0, "missing_key")
-                builder.header("Authorization", "Bearer $key")
-            }
-            AuthMode.PUBLISHABLE -> {
-                val key = publishableKey
-                    ?: throw EZAuthError("publishableKey is required for this operation", 0, "missing_key")
-                builder.header("X-Publishable-Key", key)
-            }
-        }
+        applyAuth(builder, auth)
 
         return builder.build()
     }

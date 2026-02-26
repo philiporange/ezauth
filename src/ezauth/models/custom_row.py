@@ -11,6 +11,7 @@ class CustomRow(Base, UUIDPrimaryKey, TimestampMixin):
     __tablename__ = "custom_rows"
     __table_args__ = (
         Index("ix_custom_rows_app_table", "app_id", "table_id"),
+        Index("ix_custom_rows_table_user", "table_id", "user_id"),
     )
 
     app_id: Mapped[uuid.UUID] = mapped_column(
@@ -18,6 +19,9 @@ class CustomRow(Base, UUIDPrimaryKey, TimestampMixin):
     )
     table_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("custom_tables.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
     data: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
 

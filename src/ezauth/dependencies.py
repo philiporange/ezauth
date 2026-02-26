@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 from typing import Annotated
 
 import redis.asyncio as aioredis
@@ -141,3 +142,69 @@ async def require_session(
 
 
 SessionDep = Annotated[SessionData, Depends(require_session)]
+
+
+@dataclass
+class AppAuth:
+    app: Application
+    user_id: uuid.UUID | None = None
+    session_id: uuid.UUID | None = None
+
+    @property
+    def is_admin(self) -> bool:
+        return self.user_id is None
+
+
+async def resolve_app_auth(
+    db: DbSession,
+    request: Request,
+    authorization: str | None = Header(None),
+    x_publishable_key: str | None = Header(None, alias="X-Publishable-Key"),
+) -> AppAuth:
+    """Accept either secret key (admin) or publishable key + session (user)."""
+    # 1. Secret key auth → admin
+    if authorization and authorization.startswith("Bearer sk_"):
+        secret_key = authorization[7:]
+        result = await db.execute(
+            select(Application).where(Application.secret_key == secret_key)
+        )
+        app = result.scalars().first()
+        if app is None:
+            raise HTTPException(status_code=401, detail="Invalid secret key")
+        return AppAuth(app=app)
+
+    # 2. Publishable key / host domain + session → user
+    app = await resolve_application(db, request, x_publishable_key)
+
+    cookie_name = settings.session_cookie_name
+    token = request.cookies.get(cookie_name)
+    if not token:
+        auth_header = (authorization or "")
+        if auth_header.startswith("Bearer ") and not auth_header[7:].startswith("sk_"):
+            token = auth_header[7:]
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    private_key = load_pem_private_key(app.jwk_private_pem.encode(), password=None)
+    public_key = private_key.public_key()
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode()
+
+    try:
+        payload = jwt.decode(
+            token, public_pem, algorithms=["RS256"], audience=str(app.id),
+        )
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid session token")
+
+    return AppAuth(
+        app=app,
+        user_id=uuid.UUID(payload["sub"]),
+        session_id=uuid.UUID(payload["sid"]),
+    )
+
+
+AppAuthDep = Annotated[AppAuth, Depends(resolve_app_auth)]

@@ -33,6 +33,7 @@ class Columns:
                 "default_value": default_value,
                 "position": position,
             },
+            auth="auto",
         )
 
     def update(
@@ -58,12 +59,14 @@ class Columns:
             f"/v1/tables/{_encode(table_id)}/columns/{_encode(column_id)}",
             method="PATCH",
             body=body,
+            auth="auto",
         )
 
     def delete(self, table_id: str, column_id: str) -> None:
         self._client._fetch(
             f"/v1/tables/{_encode(table_id)}/columns/{_encode(column_id)}",
             method="DELETE",
+            auth="auto",
         )
 
 
@@ -77,13 +80,13 @@ class Tables:
         body: dict = {"name": name}
         if columns is not None:
             body["columns"] = columns
-        return self._client._fetch("/v1/tables", method="POST", body=body)
+        return self._client._fetch("/v1/tables", method="POST", body=body, auth="auto")
 
     def list(self) -> dict:
-        return self._client._fetch("/v1/tables")
+        return self._client._fetch("/v1/tables", auth="auto")
 
     def get(self, table_id: str) -> dict:
-        return self._client._fetch(f"/v1/tables/{_encode(table_id)}")
+        return self._client._fetch(f"/v1/tables/{_encode(table_id)}", auth="auto")
 
     def delete(self, table_id: str) -> None:
-        self._client._fetch(f"/v1/tables/{_encode(table_id)}", method="DELETE")
+        self._client._fetch(f"/v1/tables/{_encode(table_id)}", method="DELETE", auth="auto")

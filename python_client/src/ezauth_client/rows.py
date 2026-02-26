@@ -12,16 +12,21 @@ class Rows:
     def __init__(self, client: BaseClient):
         self._client = client
 
-    def insert(self, table_id: str, data: dict) -> dict:
+    def insert(self, table_id: str, data: dict, *, user_id: str | None = None) -> dict:
+        body: dict = {"data": data}
+        if user_id is not None:
+            body["user_id"] = user_id
         return self._client._fetch(
             f"/v1/tables/{_encode(table_id)}/rows",
             method="POST",
-            body={"data": data},
+            body=body,
+            auth="auto",
         )
 
     def get(self, table_id: str, row_id: str) -> dict:
         return self._client._fetch(
             f"/v1/tables/{_encode(table_id)}/rows/{_encode(row_id)}",
+            auth="auto",
         )
 
     def update(self, table_id: str, row_id: str, data: dict) -> dict:
@@ -29,12 +34,14 @@ class Rows:
             f"/v1/tables/{_encode(table_id)}/rows/{_encode(row_id)}",
             method="PATCH",
             body={"data": data},
+            auth="auto",
         )
 
     def delete(self, table_id: str, row_id: str) -> None:
         self._client._fetch(
             f"/v1/tables/{_encode(table_id)}/rows/{_encode(row_id)}",
             method="DELETE",
+            auth="auto",
         )
 
     def query(
@@ -59,4 +66,5 @@ class Rows:
             f"/v1/tables/{_encode(table_id)}/rows/query",
             method="POST",
             body=body,
+            auth="auto",
         )

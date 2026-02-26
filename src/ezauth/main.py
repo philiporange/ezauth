@@ -18,6 +18,13 @@ async def lifespan(app: FastAPI):
     logger.info("Starting EZAuth")
     await init_redis()
     logger.info("Redis connected")
+
+    from ezauth.services.objects import create_s3_client
+
+    app.state.s3 = create_s3_client()
+    if app.state.s3:
+        logger.info("S3 client initialized")
+
     yield
     await close_redis()
     await engine.dispose()

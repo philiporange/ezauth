@@ -3,7 +3,7 @@ package org.ezauth.client
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 
-/** Table and column CRUD (secret key). */
+/** Table and column CRUD. */
 class Tables internal constructor(private val client: BaseClient) {
 
     /** Column management sub-namespace. */
@@ -26,26 +26,26 @@ class Tables internal constructor(private val client: BaseClient) {
             )
         }
         val body = kotlinx.serialization.json.JsonObject(entries)
-        val resp = client.fetch("/v1/tables", method = "POST", body = body)
+        val resp = client.fetch("/v1/tables", method = "POST", body = body, auth = AuthMode.AUTO)
         return client.json.decodeFromJsonElement(TableDetailResponse.serializer(), resp!!)
     }
 
     suspend fun list(): TableListResponse {
-        val resp = client.fetch("/v1/tables")
+        val resp = client.fetch("/v1/tables", auth = AuthMode.AUTO)
         return client.json.decodeFromJsonElement(TableListResponse.serializer(), resp!!)
     }
 
     suspend fun get(tableId: String): TableDetailResponse {
-        val resp = client.fetch("/v1/tables/${tableId.urlEncode()}")
+        val resp = client.fetch("/v1/tables/${tableId.urlEncode()}", auth = AuthMode.AUTO)
         return client.json.decodeFromJsonElement(TableDetailResponse.serializer(), resp!!)
     }
 
     suspend fun delete(tableId: String) {
-        client.fetch("/v1/tables/${tableId.urlEncode()}", method = "DELETE")
+        client.fetch("/v1/tables/${tableId.urlEncode()}", method = "DELETE", auth = AuthMode.AUTO)
     }
 }
 
-/** Column management operations (secret key). */
+/** Column management operations. */
 class Columns internal constructor(private val client: BaseClient) {
 
     suspend fun add(
@@ -67,6 +67,7 @@ class Columns internal constructor(private val client: BaseClient) {
             "/v1/tables/${tableId.urlEncode()}/columns",
             method = "POST",
             body = body,
+            auth = AuthMode.AUTO,
         )
         return client.json.decodeFromJsonElement(ColumnResponse.serializer(), resp!!)
     }
@@ -89,6 +90,7 @@ class Columns internal constructor(private val client: BaseClient) {
             "/v1/tables/${tableId.urlEncode()}/columns/${columnId.urlEncode()}",
             method = "PATCH",
             body = body,
+            auth = AuthMode.AUTO,
         )
         return client.json.decodeFromJsonElement(ColumnResponse.serializer(), resp!!)
     }
@@ -97,6 +99,7 @@ class Columns internal constructor(private val client: BaseClient) {
         client.fetch(
             "/v1/tables/${tableId.urlEncode()}/columns/${columnId.urlEncode()}",
             method = "DELETE",
+            auth = AuthMode.AUTO,
         )
     }
 }
