@@ -7,6 +7,11 @@ import kotlinx.serialization.json.JsonObject
 // ── Auth ────────────────────────────────────────────────────────────────────
 
 @Serializable
+data class OAuthAuthorizeResponse(
+    val authorization_url: String,
+)
+
+@Serializable
 data class SignUpResponse(
     val status: String,
     val user_id: String,

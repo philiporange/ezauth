@@ -62,4 +62,11 @@ export class Auth {
       body: { token },
     });
   }
+
+  signInWithOAuth({ provider, redirectUrl } = {}) {
+    return this._client._fetch(`/v1/oauth/${provider}/authorize`, {
+      auth: 'publishable',
+      query: { redirect_url: redirectUrl },
+    });
+  }
 }

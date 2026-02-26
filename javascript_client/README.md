@@ -103,6 +103,7 @@ try {
 | `getSession()` | Get current session/user |
 | `refreshToken(refreshToken)` | Refresh an access token |
 | `ssoExchange(token)` | Exchange an SSO token for a session |
+| `signInWithOAuth({ provider, redirectUrl })` | Get OAuth authorization URL |
 
 ### `ez.users` (secret key)
 

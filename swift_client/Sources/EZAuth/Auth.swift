@@ -85,6 +85,17 @@ public struct Auth: Sendable {
             auth: .publishable
         )
     }
+
+    // MARK: - OAuth
+
+    public func signInWithOAuth(provider: String, redirectUrl: String) async throws -> OAuthAuthorizeResponse {
+        try await client.fetch(
+            OAuthAuthorizeResponse.self,
+            path: "/v1/oauth/\(provider)/authorize",
+            auth: .publishable,
+            query: ["redirect_url": redirectUrl]
+        )
+    }
 }
 
 // MARK: - Request / Response types
@@ -144,4 +155,8 @@ struct RefreshTokenRequest: Encodable {
 
 struct SSOExchangeRequest: Encodable {
     let token: String
+}
+
+public struct OAuthAuthorizeResponse: Decodable, Sendable {
+    public let authorization_url: String
 }

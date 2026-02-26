@@ -71,4 +71,13 @@ class Auth internal constructor(private val client: BaseClient) {
         val resp = client.fetch("/v1/sso/exchange", method = "POST", body = body, auth = AuthMode.PUBLISHABLE)
         return client.json.decodeFromJsonElement(SessionResponse.serializer(), resp!!)
     }
+
+    suspend fun signInWithOAuth(provider: String, redirectUrl: String): OAuthAuthorizeResponse {
+        val resp = client.fetch(
+            "/v1/oauth/$provider/authorize",
+            auth = AuthMode.PUBLISHABLE,
+            query = mapOf("redirect_url" to redirectUrl),
+        )
+        return client.json.decodeFromJsonElement(OAuthAuthorizeResponse.serializer(), resp!!)
+    }
 }

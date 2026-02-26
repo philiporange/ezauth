@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     # Custom tables
     custom_tables_storage_limit_bytes: int = 104857600  # 100 MB
 
+    # OAuth
+    oauth_state_ttl_seconds: int = 600  # 10 min TTL for CSRF state nonce in Redis
+
     # S3 object storage
     s3_endpoint_url: str = ""
     s3_access_key_id: str = ""

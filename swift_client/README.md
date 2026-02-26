@@ -115,6 +115,7 @@ do {
 | `getSession()` | Get current session/user |
 | `refreshToken(_:)` | Refresh an access token |
 | `ssoExchange(token:)` | Exchange an SSO token for a session |
+| `signInWithOAuth(provider:redirectUrl:)` | Get OAuth authorization URL |
 
 ### `ez.users` (secret key)
 

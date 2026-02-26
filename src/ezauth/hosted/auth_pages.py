@@ -11,8 +11,13 @@ from ezauth.dependencies import AppDep, DbSession, RedisDep
 from ezauth.models.application import Application
 from ezauth.models.domain import Domain
 from ezauth.services.auth import (
-    AuthError, consume_code, signin_magic_link, signin_password, signup,
+    AuthError,
+    consume_code,
+    signin_magic_link,
+    signin_password,
+    signup,
 )
+from ezauth.services.oauth import get_authorization_url
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -29,11 +34,13 @@ _ERROR_MESSAGES = {
 
 def _ctx(app: Application, request: Request, **kwargs) -> dict:
     """Build common template context."""
+    oauth_providers = list((app.settings_json or {}).get("oauth_providers", {}).keys())
     return {
         "request": request,
         "app_name": app.name,
         "passwords_enabled": app.passwords_enabled,
         "verification_method": app.verification_method,
+        "oauth_providers": oauth_providers,
         **kwargs,
     }
 
@@ -385,3 +392,21 @@ async def check_email_page(
         "check_email.html",
         _ctx(app, request, email=email, type=type),
     )
+
+
+# --- OAuth ---
+
+
+@router.get("/oauth/{provider}")
+async def hosted_oauth_redirect(
+    provider: str,
+    app: AppDep,
+    redis: RedisDep,
+    redirect_url: str = "",
+):
+    """Hosted UI route: redirect to OAuth provider."""
+    try:
+        url = await get_authorization_url(app, redis, provider, redirect_url)
+    except AuthError:
+        return RedirectResponse(url=f"/auth/login?redirect_url={redirect_url}", status_code=302)
+    return RedirectResponse(url=url, status_code=302)

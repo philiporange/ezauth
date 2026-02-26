@@ -1,17 +1,23 @@
 from fastapi import APIRouter
 
+from ezauth.api import objects, tables
+from ezauth.api.backend import jwks, oauth_config, users
+from ezauth.api.backend import sessions as be_sessions
 from ezauth.api.frontend import (
     bots,
     challenges,
-    signups,
     signins,
+    signups,
+    sso,
     verify,
     verify_code,
-    sessions as fe_sessions,
-    sso,
 )
-from ezauth.api.backend import users, sessions as be_sessions, jwks
-from ezauth.api import tables, objects
+from ezauth.api.frontend import (
+    oauth as fe_oauth,
+)
+from ezauth.api.frontend import (
+    sessions as fe_sessions,
+)
 
 api_router = APIRouter()
 
@@ -24,11 +30,13 @@ api_router.include_router(verify_code.router, prefix="/v1", tags=["frontend-auth
 api_router.include_router(fe_sessions.router, prefix="/v1", tags=["frontend-sessions"])
 api_router.include_router(sso.router, prefix="/v1", tags=["frontend-sso"])
 api_router.include_router(bots.router, prefix="/v1", tags=["frontend-bots"])
+api_router.include_router(fe_oauth.router, prefix="/v1", tags=["frontend-oauth"])
 
 # Backend routes (server-facing, secret_key auth)
 api_router.include_router(users.router, prefix="/v1", tags=["backend-users"])
 api_router.include_router(be_sessions.router, prefix="/v1", tags=["backend-sessions"])
 api_router.include_router(jwks.router, tags=["backend-jwks"])
+api_router.include_router(oauth_config.router, prefix="/v1", tags=["backend-oauth"])
 
 # Unified auth routes (secret key or publishable key + session)
 api_router.include_router(tables.router, prefix="/v1", tags=["tables"])

@@ -84,3 +84,10 @@ class Auth:
 
     def request_challenge(self) -> dict:
         return self._client._fetch("/v1/challenges", method="POST", auth="publishable")
+
+    def sign_in_with_oauth(self, provider: str, redirect_url: str) -> dict:
+        return self._client._fetch(
+            f"/v1/oauth/{provider}/authorize",
+            auth="publishable",
+            query={"redirect_url": redirect_url},
+        )

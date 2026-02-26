@@ -186,6 +186,48 @@ input::placeholder {
     letter-spacing: 0.05em;
 }
 
+/* OAuth buttons */
+
+.btn-oauth {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 11px 20px;
+    transition: background 0.15s, box-shadow 0.15s;
+    cursor: pointer;
+}
+
+.btn-oauth-icon {
+    flex-shrink: 0;
+}
+
+.btn-google {
+    background: #fff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.btn-google:hover {
+    background: #f9fafb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.btn-apple {
+    background: #000;
+    color: #fff;
+    border: 1px solid #000;
+}
+
+.btn-apple:hover {
+    background: #1a1a1a;
+}
+
 /* Password strength meter */
 
 .password-strength {
