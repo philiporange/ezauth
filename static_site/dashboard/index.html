@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EZAuth Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; display: flex; min-height: 100vh; }
+#app { width: 100%; display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar { width: 220px; background: #1a1a2e; color: #fff; padding: 20px 0; display: flex; flex-direction: column; position: fixed; height: 100vh; }
+.sidebar-brand { font-size: 18px; font-weight: 700; padding: 0 20px 20px; border-bottom: 1px solid #333; margin-bottom: 10px; }
+.sidebar a { color: #ccc; text-decoration: none; padding: 10px 20px; display: block; transition: background 0.2s; cursor: pointer; }
+.sidebar a:hover, .sidebar a.active { background: #16213e; color: #fff; }
+.sidebar .logout { margin-top: auto; border-top: 1px solid #333; }
+
+/* Content */
+.content { margin-left: 220px; padding: 30px; flex: 1; min-width: 0; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+h2 { font-size: 24px; font-weight: 600; margin-bottom: 20px; }
+h3 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
+
+/* Tables */
+table { width: 100%; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-collapse: collapse; }
+th { background: #f8f9fa; text-align: left; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #666; border-bottom: 2px solid #eee; }
+td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+tr:hover td { background: #fafafa; }
+
+/* Forms */
+label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 4px; margin-top: 16px; color: #555; }
+label:first-child { margin-top: 0; }
+input[type="text"], input[type="email"], input[type="password"], input[type="url"], select, textarea {
+  width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 4px;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
+button, .btn { display: inline-block; padding: 10px 20px; background: #3498db; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; text-decoration: none; transition: background 0.2s; }
+button:hover, .btn:hover { background: #2980b9; }
+.btn-danger { background: #e74c3c; }
+.btn-danger:hover { background: #c0392b; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+
+/* Cards */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.stat-card .label { font-size: 13px; color: #666; font-weight: 600; margin-bottom: 4px; }
+.stat-card .value { font-size: 28px; font-weight: 700; color: #111; }
+
+/* Badges */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.badge-success { background: #d4edda; color: #155724; }
+.badge-warning { background: #fff3cd; color: #856404; }
+.badge-muted { background: #e9ecef; color: #6c757d; }
+
+/* Utility */
+.mono { font-family: 'SF Mono', Consolas, monospace; font-size: 13px; }
+.error { color: #dc3545; margin-bottom: 10px; }
+.success { color: #155724; margin-bottom: 10px; }
+.inline-form { display: flex; gap: 10px; align-items: end; margin-bottom: 20px; }
+.inline-form input, .inline-form select { margin-bottom: 0; }
+.search-form { display: flex; gap: 10px; margin-bottom: 20px; }
+.search-form input { flex: 1; }
+.pagination { display: flex; gap: 10px; align-items: center; margin-top: 20px; justify-content: center; }
+.clickable { cursor: pointer; }
+.clickable:hover td { background: #f0f4ff; }
+.actions { display: flex; gap: 10px; margin-top: 16px; }
+.form-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.back-link { color: #3498db; cursor: pointer; text-decoration: none; font-size: 14px; margin-bottom: 16px; display: inline-block; }
+.back-link:hover { text-decoration: underline; }
+.empty { color: #999; font-style: italic; padding: 20px; text-align: center; }
+.provider-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 16px; }
+.provider-card h3 { margin-bottom: 8px; }
+.tag { display: inline-block; background: #e9ecef; color: #495057; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 4px; }
+.hidden { display: none; }
+
+/* Login */
+.login-page { display: flex; align-items: center; justify-content: center; background: #1a1a2e; min-height: 100vh; width: 100%; }
+.login-card { background: #fff; padding: 40px; border-radius: 12px; width: 380px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.login-card h1 { font-size: 24px; margin-bottom: 24px; text-align: center; }
+
+/* Loading */
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #3498db; border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading { text-align: center; padding: 40px; color: #999; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="ezauth.iife.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  const $ = (sel, ctx) => (ctx || document).querySelector(sel);
+  const $$ = (sel, ctx) => [...(ctx || document).querySelectorAll(sel)];
+
+  let ez = null;
+  const apiUrl = 'https://api.ezauth.org';
+
+  // ── Session ──
+
+  function getSession() {
+    const s = sessionStorage.getItem('ezauth_dash');
+    return s ? JSON.parse(s) : null;
+  }
+
+  function saveSession(key) {
+    sessionStorage.setItem('ezauth_dash', JSON.stringify({ key }));
+  }
+
+  function clearSession() {
+    sessionStorage.removeItem('ezauth_dash');
+    ez = null;
+    navigate('');
+  }
+
+  function initSDK(key) {
+    ez = new EZAuth.EZAuth({ baseUrl: apiUrl, secretKey: key });
+  }
+
+  // ── Router ──
+
+  function navigate(hash) {
+    window.location.hash = hash;
+  }
+
+  function getRoute() {
+    const h = window.location.hash.replace(/^#\/?/, '');
+    return h || '';
+  }
+
+  function router() {
+    const session = getSession();
+    if (!session) { renderLogin(); return; }
+    if (!ez) initSDK(session.key);
+
+    const route = getRoute();
+    const parts = route.split('/');
+
+    if (parts[0] === 'users') renderUsers();
+    else if (parts[0] === 'tables' && parts[1]) renderTableDetail(parts[1]);
+    else if (parts[0] === 'tables') renderTables();
+    else if (parts[0] === 'buckets' && parts[1]) renderBucketDetail(parts[1]);
+    else if (parts[0] === 'buckets') renderBuckets();
+    else if (parts[0] === 'oauth') renderOAuth();
+    else renderOverview();
+  }
+
+  window.addEventListener('hashchange', router);
+
+  // ── Helpers ──
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function formatDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function formatBytes(b) {
+    if (b == null) return '—';
+    if (b === 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(b) / Math.log(1024));
+    return (b / Math.pow(1024, i)).toFixed(i ? 1 : 0) + ' ' + units[i];
+  }
+
+  function setActive(name) {
+    $$('.sidebar a[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === name));
+  }
+
+  // ── Layout ──
+
+  function renderShell(activePage, contentHTML) {
+    const app = $('#app');
+    app.innerHTML = `
+      <nav class="sidebar">
+        <div class="sidebar-brand">EZAuth</div>
+        <a data-nav="overview" onclick="location.hash='#overview'">Overview</a>
+        <a data-nav="users" onclick="location.hash='#users'">Users</a>
+        <a data-nav="tables" onclick="location.hash='#tables'">Tables</a>
+        <a data-nav="buckets" onclick="location.hash='#buckets'">Buckets</a>
+        <a data-nav="oauth" onclick="location.hash='#oauth'">OAuth</a>
+        <a class="logout" id="logout-btn">Logout</a>
+      </nav>
+      <main class="content" id="main">${contentHTML}</main>
+    `;
+    setActive(activePage);
+    $('#logout-btn').onclick = clearSession;
+  }
+
+  function setContent(html) {
+    const m = $('#main');
+    if (m) m.innerHTML = html;
+  }
+
+  // ── Login ──
+
+  function renderLogin() {
+    const app = $('#app');
+    app.innerHTML = `
+      <div class="login-page">
+        <div class="login-card">
+          <h1>EZAuth</h1>
+          <p id="login-error" class="error hidden"></p>
+          <div id="email-step">
+            <label for="login-email">Email</label>
+            <input type="email" id="login-email" placeholder="admin@example.com" autofocus>
+            <div style="margin-top:20px">
+              <button id="send-code-btn" style="width:100%">Send Code</button>
+            </div>
+          </div>
+          <div id="code-step" class="hidden">
+            <label for="login-code">Code</label>
+            <input type="text" id="login-code" placeholder="123456" maxlength="6" inputmode="numeric">
+            <div style="margin-top:20px">
+              <button id="verify-code-btn" style="width:100%">Verify</button>
+            </div>
+            <p style="text-align:center;margin-top:12px;"><a id="back-to-email" style="color:#3498db;cursor:pointer;font-size:14px;">Back</a></p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    $('#send-code-btn').onclick = doSendCode;
+    $('#login-email').onkeydown = e => { if (e.key === 'Enter') doSendCode(); };
+    $('#verify-code-btn').onclick = doVerifyCode;
+    $('#login-code').onkeydown = e => { if (e.key === 'Enter') doVerifyCode(); };
+    $('#back-to-email').onclick = () => {
+      $('#email-step').classList.remove('hidden');
+      $('#code-step').classList.add('hidden');
+      $('#login-error').classList.add('hidden');
+    };
+  }
+
+  async function doSendCode() {
+    const email = $('#login-email').value.trim();
+    const errEl = $('#login-error');
+    const btn = $('#send-code-btn');
+    if (!email) { errEl.textContent = 'Email is required.'; errEl.classList.remove('hidden'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    errEl.classList.add('hidden');
+
+    try {
+      const res = await fetch(apiUrl + '/v1/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || 'Failed: ' + res.status); }
+      $('#email-step').classList.add('hidden');
+      $('#code-step').classList.remove('hidden');
+      $('#login-code').focus();
+    } catch (e) {
+      errEl.textContent = 'Failed to send code: ' + (e.message || 'Unknown error');
+      errEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send Code';
+    }
+  }
+
+  async function doVerifyCode() {
+    const email = $('#login-email').value.trim();
+    const code = $('#login-code').value.trim();
+    const errEl = $('#login-error');
+    const btn = $('#verify-code-btn');
+    if (!code) { errEl.textContent = 'Enter the code from your email.'; errEl.classList.remove('hidden'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Verifying...';
+    errEl.classList.add('hidden');
+
+    try {
+      const res = await fetch(apiUrl + '/v1/admin/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || 'Invalid code'); }
+      const data = await res.json();
+      const entry = Array.isArray(data) ? data[0] : data;
+      saveSession(entry.admin_token);
+      initSDK(entry.admin_token);
+      navigate('#overview');
+    } catch (e) {
+      errEl.textContent = e.message || 'Verification failed';
+      errEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Verify';
+    }
+  }
+
+  // ── Overview ──
+
+  function renderOverview() {
+    renderShell('overview', '<h2>Overview</h2><div class="loading"><span class="spinner"></span> Loading...</div>');
+    loadOverview();
+  }
+
+  async function loadOverview() {
+    try {
+      const [usersRes, tablesRes, bucketsRes] = await Promise.all([
+        ez.users.list({ limit: 1 }),
+        ez.tables.list(),
+        ez.buckets.list(),
+      ]);
+
+      let tableStorage = null, objectStorage = null;
+      try {
+        [tableStorage, objectStorage] = await Promise.all([
+          ez.storage.tables(),
+          ez.storage.objects(),
+        ]);
+      } catch(e) { /* storage endpoints may not exist */ }
+
+      const userCount = usersRes.total != null ? usersRes.total : (usersRes.users || []).length;
+      const tableCount = (tablesRes.tables || tablesRes || []).length;
+      const bucketCount = (bucketsRes.buckets || bucketsRes || []).length;
+      const tableBytes = tableStorage ? (tableStorage.total_bytes || tableStorage.bytes || 0) : null;
+      const objectBytes = objectStorage ? (objectStorage.total_bytes || objectStorage.bytes || 0) : null;
+
+      setContent(`
+        <h2>Overview</h2>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="label">Users</div><div class="value">${userCount}</div></div>
+          <div class="stat-card"><div class="label">Tables</div><div class="value">${tableCount}</div></div>
+          <div class="stat-card"><div class="label">Buckets</div><div class="value">${bucketCount}</div></div>
+          ${tableBytes != null ? `<div class="stat-card"><div class="label">Table Storage</div><div class="value">${formatBytes(tableBytes)}</div></div>` : ''}
+          ${objectBytes != null ? `<div class="stat-card"><div class="label">Object Storage</div><div class="value">${formatBytes(objectBytes)}</div></div>` : ''}
+        </div>
+      `);
+    } catch(e) {
+      setContent(`<h2>Overview</h2><p class="error">Failed to load: ${esc(e.message)}</p>`);
+    }
+  }
+
+  // ── Users ──
+
+  let usersPage = 0;
+  const USERS_LIMIT = 50;
+
+  function renderUsers() {
+    renderShell('users', '<h2>Users</h2><div class="loading"><span class="spinner"></span> Loading...</div>');
+    usersPage = 0;
+    loadUsers();
+  }
+
+  async function loadUsers(email) {
+    try {
+      const params = { limit: USERS_LIMIT, offset: usersPage * USERS_LIMIT };
+      if (email) params.email = email;
+      const res = await ez.users.list(params);
+      const users = res.users || res || [];
+      const total = res.total != null ? res.total : '?';
+
+      let html = `
+        <div class="page-header"><h2>Users</h2><button id="create-user-toggle" class="btn btn-sm">Create User</button></div>
+        <div id="create-user-form" class="form-card hidden">
+          <h3>Create User</h3>
+          <p id="create-user-error" class="error hidden"></p>
+          <div class="inline-form">
+            <div style="flex:1"><label>Email</label><input type="email" id="new-user-email" placeholder="user@example.com"></div>
+            <div style="flex:1"><label>Password (optional)</label><input type="password" id="new-user-password" placeholder="Leave blank for magic link only"></div>
+            <button id="create-user-btn" style="margin-top:20px">Create</button>
+          </div>
+        </div>
+        <div class="search-form">
+          <input type="text" id="user-search" placeholder="Search by email..." value="${esc(email || '')}">
+          <button id="user-search-btn">Search</button>
+        </div>
+      `;
+
+      if (users.length === 0) {
+        html += '<p class="empty">No users found.</p>';
+      } else {
+        html += `<table><thead><tr><th>Email</th><th>Verified</th><th>Created</th></tr></thead><tbody>`;
+        for (const u of users) {
+          html += `<tr>
+            <td>${esc(u.email)}</td>
+            <td>${u.email_verified ? '<span class="badge badge-success">Verified</span>' : '<span class="badge badge-muted">Unverified</span>'}</td>
+            <td>${formatDate(u.created_at)}</td>
+          </tr>`;
+        }
+        html += '</tbody></table>';
+        html += `<div class="pagination">
+          <button id="users-prev" class="btn btn-sm" ${usersPage === 0 ? 'disabled' : ''}>Previous</button>
+          <span>Page ${usersPage + 1}${total !== '?' ? ' of ' + Math.ceil(total / USERS_LIMIT) : ''}</span>
+          <button id="users-next" class="btn btn-sm" ${users.length < USERS_LIMIT ? 'disabled' : ''}>Next</button>
+        </div>`;
+      }
+
+      setContent(html);
+      bindUserEvents(email);
+    } catch(e) {
+      setContent(`<h2>Users</h2><p class="error">Failed to load: ${esc(e.message)}</p>`);
+    }
+  }
+
+  function bindUserEvents(currentEmail) {
+    const toggle = $('#create-user-toggle');
+    const form = $('#create-user-form');
+    if (toggle) toggle.onclick = () => form.classList.toggle('hidden');
+
+    const searchBtn = $('#user-search-btn');
+    const searchInput = $('#user-search');
+    if (searchBtn) {
+      const doSearch = () => { usersPage = 0; loadUsers(searchInput.value.trim() || undefined); };
+      searchBtn.onclick = doSearch;
+      searchInput.onkeydown = e => { if (e.key === 'Enter') doSearch(); };
+    }
+
+    const createBtn = $('#create-user-btn');
+    if (createBtn) createBtn.onclick = async () => {
+      const email = $('#new-user-email').value.trim();
+      const password = $('#new-user-password').value;
+      const errEl = $('#create-user-error');
+      if (!email) { errEl.textContent = 'Email is required.'; errEl.classList.remove('hidden'); return; }
+      createBtn.disabled = true;
+      try {
+        const params = { email };
+        if (password) params.password = password;
+        await ez.users.create(params);
+        loadUsers(currentEmail);
+      } catch(e) {
+        errEl.textContent = e.message; errEl.classList.remove('hidden');
+        createBtn.disabled = false;
+      }
+    };
+
+    const prev = $('#users-prev');
+    const next = $('#users-next');
+    if (prev) prev.onclick = () => { usersPage--; loadUsers(currentEmail); };
+    if (next) next.onclick = () => { usersPage++; loadUsers(currentEmail); };
+  }
+
+  // ── Tables ──
+
+  function renderTables() {
+    renderShell('tables', '<h2>Tables</h2><div class="loading"><span class="spinner"></span> Loading...</div>');
+    loadTables();
+  }
+
+  async function loadTables() {
+    try {
+      const res = await ez.tables.list();
+      const tables = res.tables || res || [];
+
+      let html = `
+        <div class="page-header"><h2>Tables</h2><button id="create-table-toggle" class="btn btn-sm">Create Table</button></div>
+        <div id="create-table-form" class="form-card hidden">
+          <h3>Create Table</h3>
+          <p id="create-table-error" class="error hidden"></p>
+          <div class="inline-form">
+            <div style="flex:1"><label>Name</label><input type="text" id="new-table-name" placeholder="my_table"></div>
+            <button id="create-table-btn" style="margin-top:20px">Create</button>
+          </div>
+        </div>
+      `;
+
+      if (tables.length === 0) {
+        html += '<p class="empty">No tables yet.</p>';
+      } else {
+        html += '<table><thead><tr><th>Name</th><th>Columns</th><th>Created</th></tr></thead><tbody>';
+        for (const t of tables) {
+          const cols = t.columns ? t.columns.length : '—';
+          html += `<tr class="clickable" data-id="${esc(t.id)}">
+            <td><strong>${esc(t.name)}</strong></td>
+            <td>${cols}</td>
+            <td>${formatDate(t.created_at)}</td>
+          </tr>`;
+        }
+        html += '</tbody></table>';
+      }
+
+      setContent(html);
+
+      const toggle = $('#create-table-toggle');
+      const form = $('#create-table-form');
+      if (toggle) toggle.onclick = () => form.classList.toggle('hidden');
+
+      const createBtn = $('#create-table-btn');
+      if (createBtn) createBtn.onclick = async () => {
+        const name = $('#new-table-name').value.trim();
+        const errEl = $('#create-table-error');
+        if (!name) { errEl.textContent = 'Name is required.'; errEl.classList.remove('hidden'); return; }
+        createBtn.disabled = true;
+        try {
+          await ez.tables.create({ name });
+          loadTables();
+        } catch(e) {
+          errEl.textContent = e.message; errEl.classList.remove('hidden');
+          createBtn.disabled = false;
+        }
+      };
+
+      $$('tr.clickable').forEach(tr => {
+        tr.onclick = () => navigate('#tables/' + tr.dataset.id);
+      });
+    } catch(e) {
+      setContent(`<h2>Tables</h2><p class="error">Failed to load: ${esc(e.message)}</p>`);
+    }
+  }
+
+  // ── Table Detail ──
+
+  function renderTableDetail(id) {
+    renderShell('tables', '<div class="loading"><span class="spinner"></span> Loading...</div>');
+    loadTableDetail(id);
+  }
+
+  async function loadTableDetail(id) {
+    try {
+      const table = await ez.tables.get(id);
+      const columns = table.columns || [];
+
+      let html = `
+        <a class="back-link" onclick="location.hash='#tables'">&larr; Back to Tables</a>
+        <div class="page-header"><h2>${esc(table.name)}</h2></div>
+
+        <div class="form-card">
+          <h3>Columns</h3>
+          ${columns.length === 0 ? '<p class="empty">No columns defined.</p>' : `
+          <table><thead><tr><th>Name</th><th>Type</th><th>Required</th><th></th></tr></thead><tbody>
+            ${columns.map(c => `<tr>
+              <td>${esc(c.name)}</td>
+              <td><span class="tag">${esc(c.type)}</span></td>
+              <td>${c.required ? 'Yes' : 'No'}</td>
+              <td><button class="btn btn-sm btn-danger delete-col-btn" data-col-id="${esc(c.id)}">Delete</button></td>
+            </tr>`).join('')}
+          </tbody></table>`}
+
+          <div style="margin-top:16px">
+            <h3>Add Column</h3>
+            <p id="add-col-error" class="error hidden"></p>
+            <div class="inline-form">
+              <div><label>Name</label><input type="text" id="col-name" placeholder="column_name"></div>
+              <div><label>Type</label>
+                <select id="col-type">
+                  <option value="text">text</option>
+                  <option value="integer">integer</option>
+                  <option value="float">float</option>
+                  <option value="boolean">boolean</option>
+                  <option value="json">json</option>
+                </select>
+              </div>
+              <button id="add-col-btn" style="margin-top:20px">Add</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card">
+          <h3>Rows</h3>
+          <div id="rows-container"><div class="loading"><span class="spinner"></span> Loading rows...</div></div>
+        </div>
+      `;
+
+      setContent(html);
+      bindTableDetailEvents(id);
+      loadTableRows(id, null);
+    } catch(e) {
+      setContent(`<a class="back-link" onclick="location.hash='#tables'">&larr; Back</a><p class="error">Failed to load: ${esc(e.message)}</p>`);
+    }
+  }
+
+  function bindTableDetailEvents(tableId) {
+    const addBtn = $('#add-col-btn');
+    if (addBtn) addBtn.onclick = async () => {
+      const name = $('#col-name').value.trim();
+      const type = $('#col-type').value;
+      const errEl = $('#add-col-error');
+      if (!name) { errEl.textContent = 'Name is required.'; errEl.classList.remove('hidden'); return; }
+      addBtn.disabled = true;
+      try {
+        await ez.tables.columns.add(tableId, { name, type });
+        loadTableDetail(tableId);
+      } catch(e) {
+        errEl.textContent = e.message; errEl.classList.remove('hidden');
+        addBtn.disabled = false;
+      }
+    };
+
+    $$('.delete-col-btn').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        if (!confirm('Delete this column? This cannot be undone.')) return;
+        btn.disabled = true;
+        try {
+          await ez.tables.columns.delete(tableId, btn.dataset.colId);
+          loadTableDetail(tableId);
+        } catch(e) { alert('Error: ' + e.message); btn.disabled = false; }
+      };
+    });
+  }
+
+  async function loadTableRows(tableId, cursor) {
+    const container = $('#rows-container');
+    if (!container) return;
+    try {
+      const res = await ez.tables.rows.query(tableId, { limit: 25, cursor: cursor || undefined });
+      const rows = res.rows || res.data || res || [];
+      const nextCursor = res.next_cursor || res.cursor || null;
+
+      if (rows.length === 0 && !cursor) {
+        container.innerHTML = '<p class="empty">No rows.</p>';
+        return;
+      }
+
+      // Collect all data keys
+      const keys = new Set();
+      rows.forEach(r => {
+        const data = r.data || r;
+        if (typeof data === 'object') Object.keys(data).forEach(k => keys.add(k));
+      });
+      const cols = [...keys];
+
+      let html = '<div style="overflow-x:auto"><table><thead><tr><th>ID</th>';
+      for (const c of cols) html += `<th>${esc(c)}</th>`;
+      html += '<th>Created</th></tr></thead><tbody>';
+      for (const r of rows) {
+        html += `<tr><td class="mono">${esc(String(r.id || ''))}</td>`;
+        const data = r.data || r;
+        for (const c of cols) {
+          const v = data[c];
+          html += `<td>${v != null ? esc(String(v)) : '<span style="color:#ccc">null</span>'}</td>`;
+        }
+        html += `<td>${formatDate(r.created_at)}</td></tr>`;
+      }
+      html += '</tbody></table></div>';
+
+      html += '<div class="pagination">';
+      if (cursor) html += `<button class="btn btn-sm" id="rows-first">First Page</button>`;
+      if (nextCursor) html += `<button class="btn btn-sm" id="rows-next">Next Page</button>`;
+      html += '</div>';
+
+      container.innerHTML = html;
+
+      const firstBtn = $('#rows-first');
+      const nextBtn = $('#rows-next');
+      if (firstBtn) firstBtn.onclick = () => loadTableRows(tableId, null);
+      if (nextBtn) nextBtn.onclick = () => loadTableRows(tableId, nextCursor);
+    } catch(e) {
+      container.innerHTML = `<p class="error">Failed to load rows: ${esc(e.message)}</p>`;
+    }
+  }
+
+  // ── Buckets ──
+
+  function renderBuckets() {
+    renderShell('buckets', '<h2>Buckets</h2><div class="loading"><span class="spinner"></span> Loading...</div>');
+    loadBuckets();
+  }
+
+  async function loadBuckets() {
+    try {
+      const res = await ez.buckets.list();
+      const buckets = res.buckets || res || [];
+
+      let html = `
+        <div class="page-header"><h2>Buckets</h2><button id="create-bucket-toggle" class="btn btn-sm">Create Bucket</button></div>
+        <div id="create-bucket-form" class="form-card hidden">
+          <h3>Create Bucket</h3>
+          <p id="create-bucket-error" class="error hidden"></p>
+          <div class="inline-form">
+            <div style="flex:1"><label>Name</label><input type="text" id="new-bucket-name" placeholder="my-bucket"></div>
+            <button id="create-bucket-btn" style="margin-top:20px">Create</button>
+          </div>
+        </div>
+      `;
+
+      if (buckets.length === 0) {
+        html += '<p class="empty">No buckets yet.</p>';
+      } else {
+        html += '<table><thead><tr><th>Name</th><th>Created</th></tr></thead><tbody>';
+        for (const b of buckets) {
+          html += `<tr class="clickable" data-id="${esc(b.id)}">
+            <td><strong>${esc(b.name)}</strong></td>
+            <td>${formatDate(b.created_at)}</td>
+          </tr>`;
+        }
+        html += '</tbody></table>';
+      }
+
+      setContent(html);
+
+      const toggle = $('#create-bucket-toggle');
+      const form = $('#create-bucket-form');
+      if (toggle) toggle.onclick = () => form.classList.toggle('hidden');
+
+      const createBtn = $('#create-bucket-btn');
+      if (createBtn) createBtn.onclick = async () => {
+        const name = $('#new-bucket-name').value.trim();
+        const errEl = $('#create-bucket-error');
+        if (!name) { errEl.textContent = 'Name is required.'; errEl.classList.remove('hidden'); return; }
+        createBtn.disabled = true;
+        try {
+          await ez.buckets.create({ name });
+          loadBuckets();
+        } catch(e) {
+          errEl.textContent = e.message; errEl.classList.remove('hidden');
+          createBtn.disabled = false;
+        }
+      };
+
+      $$('tr.clickable').forEach(tr => {
+        tr.onclick = () => navigate('#buckets/' + tr.dataset.id);
+      });
+    } catch(e) {
+      setContent(`<h2>Buckets</h2><p class="error">Failed to load: ${esc(e.message)}</p>`);
+    }
+  }
+
+  // ── Bucket Detail ──
+
+  function renderBucketDetail(id) {
+    renderShell('buckets', '<div class="loading"><span class="spinner"></span> Loading...</div>');
+    loadBucketDetail(id);
+  }
+
+  async function loadBucketDetail(id) {
+    try {
+      const bucket = await ez.buckets.get(id);
+      let html = `
+        <a class="back-link" onclick="location.hash='#buckets'">&larr; Back to Buckets</a>
+        <div class="page-header"><h2>${esc(bucket.name)}</h2></div>
+        <div class="form-card">
+          <h3>Objects</h3>
+          <div id="objects-container"><div class="loading"><span class="spinner"></span> Loading objects...</div></div>
+        </div>
+      `;
+      setContent(html);
+      loadBucketObjects(id, null);
+    } catch(e) {
+      setContent(`<a class="back-link" onclick="location.hash='#buckets'">&larr; Back</a><p class="error">Failed to load: ${esc(e.message)}</p>`);
+    }
+  }
+
+  async function loadBucketObjects(bucketId, cursor) {
+    const container = $('#objects-container');
+    if (!container) return;
+    try {
+      const res = await ez.buckets.objects.list(bucketId, { limit: 25, cursor: cursor || undefined });
+      const objects = res.objects || res.data || res || [];
+      const nextCursor = res.next_cursor || res.cursor || null;
+
+      if (objects.length === 0 && !cursor) {
+        container.innerHTML = '<p class="empty">No objects.</p>';
+        return;
+      }
+
+      let html = '<table><thead><tr><th>Key</th><th>Content Type</th><th>Size</th><th>Created</th></tr></thead><tbody>';
+      for (const o of objects) {
+        html += `<tr>
+          <td class="mono">${esc(o.key)}</td>
+          <td>${esc(o.content_type || '—')}</td>
+          <td>${formatBytes(o.size)}</td>
+          <td>${formatDate(o.created_at)}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+
+      html += '<div class="pagination">';
+      if (cursor) html += `<button class="btn btn-sm" id="obj-first">First Page</button>`;
+      if (nextCursor) html += `<button class="btn btn-sm" id="obj-next">Next Page</button>`;
+      html += '</div>';
+
+      container.innerHTML = html;
+
+      const firstBtn = $('#obj-first');
+      const nextBtn = $('#obj-next');
+      if (firstBtn) firstBtn.onclick = () => loadBucketObjects(bucketId, null);
+      if (nextBtn) nextBtn.onclick = () => loadBucketObjects(bucketId, nextCursor);
+    } catch(e) {
+      container.innerHTML = `<p class="error">Failed to load objects: ${esc(e.message)}</p>`;
+    }
+  }
+
+  // ── OAuth ──
+
+  function renderOAuth() {
+    renderShell('oauth', '<h2>OAuth Providers</h2><div class="loading"><span class="spinner"></span> Loading...</div>');
+    loadOAuth();
+  }
+
+  async function loadOAuth() {
+    try {
+      const session = getSession();
+      const res = await fetch(apiUrl + '/v1/oauth/providers', {
+        headers: { 'Authorization': 'Bearer ' + session.key }
+      });
+      if (!res.ok) throw new Error('Failed to fetch providers: ' + res.status);
+      const data = await res.json();
+      const raw = data.providers || data || {};
+      const providers = Array.isArray(raw) ? raw : Object.entries(raw).map(([k, v]) => ({ provider: k, ...v }));
+
+      const configured = {};
+      for (const p of providers) {
+        configured[p.provider || p.name] = p;
+      }
+
+      let html = `<h2>OAuth Providers</h2>`;
+
+      // Google
+      html += renderProviderForm('google', 'Google', configured.google, [
+        { key: 'client_id', label: 'Client ID', type: 'text' },
+        { key: 'client_secret', label: 'Client Secret', type: 'password' },
+      ]);
+
+      // Apple
+      html += renderProviderForm('apple', 'Apple', configured.apple, [
+        { key: 'client_id', label: 'Client ID (Service ID)', type: 'text' },
+        { key: 'team_id', label: 'Team ID', type: 'text' },
+        { key: 'key_id', label: 'Key ID', type: 'text' },
+        { key: 'private_key', label: 'Private Key', type: 'textarea' },
+      ]);
+
+      setContent(html);
+      bindOAuthEvents();
+    } catch(e) {
+      setContent(`<h2>OAuth Providers</h2><p class="error">Failed to load: ${esc(e.message)}</p>`);
+    }
+  }
+
+  function renderProviderForm(provider, label, existing, fields) {
+    let html = `<div class="provider-card">
+      <h3>${label}</h3>
+      ${existing ? '<span class="badge badge-success">Configured</span>' : '<span class="badge badge-muted">Not configured</span>'}
+      <p id="${provider}-msg" class="hidden" style="margin-top:8px"></p>
+      <div style="margin-top:12px">`;
+
+    for (const f of fields) {
+      const val = existing ? (existing[f.key] || '') : '';
+      html += `<label>${f.label}</label>`;
+      if (f.type === 'textarea') {
+        html += `<textarea id="${provider}-${f.key}" rows="4" placeholder="${f.label}">${esc(val)}</textarea>`;
+      } else {
+        html += `<input type="${f.type}" id="${provider}-${f.key}" value="${esc(val)}" placeholder="${f.label}">`;
+      }
+    }
+
+    html += `</div><div class="actions">
+      <button class="btn" id="${provider}-save">Save</button>
+      ${existing ? `<button class="btn btn-danger" id="${provider}-delete">Remove</button>` : ''}
+    </div></div>`;
+    return html;
+  }
+
+  function bindOAuthEvents() {
+    bindProviderSave('google', ['client_id', 'client_secret']);
+    bindProviderSave('apple', ['client_id', 'team_id', 'key_id', 'private_key']);
+    bindProviderDelete('google');
+    bindProviderDelete('apple');
+  }
+
+  function bindProviderSave(provider, fields) {
+    const btn = $(`#${provider}-save`);
+    if (!btn) return;
+    btn.onclick = async () => {
+      const msgEl = $(`#${provider}-msg`);
+      const body = {};
+      for (const f of fields) {
+        const el = $(`#${provider}-${f}`);
+        body[f] = el ? el.value.trim() : '';
+      }
+      btn.disabled = true;
+      msgEl.classList.add('hidden');
+      try {
+        const session = getSession();
+        const res = await fetch(apiUrl + '/v1/oauth/providers/' + provider, {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + session.key, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || d.message || 'Failed: ' + res.status); }
+        msgEl.textContent = 'Saved successfully.';
+        msgEl.className = 'success';
+        msgEl.classList.remove('hidden');
+        setTimeout(() => loadOAuth(), 1000);
+      } catch(e) {
+        msgEl.textContent = e.message;
+        msgEl.className = 'error';
+        msgEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  }
+
+  function bindProviderDelete(provider) {
+    const btn = $(`#${provider}-delete`);
+    if (!btn) return;
+    btn.onclick = async () => {
+      if (!confirm(`Remove ${provider} OAuth configuration?`)) return;
+      btn.disabled = true;
+      try {
+        const session = getSession();
+        const res = await fetch(apiUrl + '/v1/oauth/providers/' + provider, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + session.key },
+        });
+        if (!res.ok) throw new Error('Failed: ' + res.status);
+        loadOAuth();
+      } catch(e) {
+        alert('Error: ' + e.message);
+        btn.disabled = false;
+      }
+    };
+  }
+
+  // ── Boot ──
+
+  router();
+
+})();
+</script>
+</body>
+</html>

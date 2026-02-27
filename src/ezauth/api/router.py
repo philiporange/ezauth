@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from ezauth.api import objects, tables
+from ezauth.api import admin_auth, objects, tables
 from ezauth.api.backend import jwks, oauth_config, users
 from ezauth.api.backend import sessions as be_sessions
 from ezauth.api.frontend import (
@@ -31,6 +31,9 @@ api_router.include_router(fe_sessions.router, prefix="/v1", tags=["frontend-sess
 api_router.include_router(sso.router, prefix="/v1", tags=["frontend-sso"])
 api_router.include_router(bots.router, prefix="/v1", tags=["frontend-bots"])
 api_router.include_router(fe_oauth.router, prefix="/v1", tags=["frontend-oauth"])
+
+# Admin auth routes (email magic link login)
+api_router.include_router(admin_auth.router, prefix="/v1", tags=["admin-auth"])
 
 # Backend routes (server-facing, secret_key auth)
 api_router.include_router(users.router, prefix="/v1", tags=["backend-users"])

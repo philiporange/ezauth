@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Todo App — EZAuth Example</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+
+/* Auth pages */
+.auth-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.auth-card { background: #fff; padding: 40px; border-radius: 12px; width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.auth-card h1 { font-size: 22px; margin-bottom: 6px; text-align: center; }
+.auth-card p.subtitle { color: #888; font-size: 14px; text-align: center; margin-bottom: 24px; }
+.auth-card label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 4px; margin-top: 16px; color: #555; }
+.auth-card label:first-of-type { margin-top: 0; }
+.auth-card input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+.auth-card input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.15); }
+.auth-card button { width: 100%; padding: 11px; background: #667eea; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 20px; transition: background 0.2s; }
+.auth-card button:hover { background: #5a6fd6; }
+.auth-card button:disabled { opacity: 0.6; cursor: not-allowed; }
+.auth-card .switch { text-align: center; margin-top: 16px; font-size: 13px; color: #888; }
+.auth-card .switch a { color: #667eea; cursor: pointer; text-decoration: none; font-weight: 600; }
+.auth-card .switch a:hover { text-decoration: underline; }
+.error { color: #dc3545; font-size: 13px; margin-top: 8px; }
+.info { color: #667eea; font-size: 13px; margin-top: 8px; text-align: center; }
+
+/* App shell */
+.app-header { background: #fff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 10; }
+.app-header h1 { font-size: 18px; font-weight: 700; color: #333; }
+.app-header .user-info { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #666; }
+.app-header .user-info button { padding: 6px 14px; font-size: 13px; width: auto; margin: 0; background: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.app-header .user-info button:hover { background: #667eea; color: #fff; }
+
+/* Todo list */
+.todo-container { max-width: 600px; margin: 32px auto; padding: 0 16px; }
+.add-form { display: flex; gap: 8px; margin-bottom: 24px; }
+.add-form input { flex: 1; padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; background: #fff; }
+.add-form input:focus { outline: none; border-color: #667eea; }
+.add-form button { padding: 12px 24px; background: #667eea; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; white-space: nowrap; width: auto; margin: 0; }
+.add-form button:hover { background: #5a6fd6; }
+
+.todo-list { list-style: none; }
+.todo-item { display: flex; align-items: center; gap: 12px; background: #fff; padding: 14px 16px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); transition: opacity 0.2s; }
+.todo-item.done .todo-text { text-decoration: line-through; color: #aaa; }
+.todo-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #667eea; flex-shrink: 0; }
+.todo-text { flex: 1; font-size: 15px; word-break: break-word; }
+.todo-delete { background: none; border: none; color: #ccc; cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: 4px; width: auto; margin: 0; line-height: 1; }
+.todo-delete:hover { color: #dc3545; background: #fee; }
+.empty { text-align: center; color: #aaa; padding: 40px; font-size: 15px; }
+.loading { text-align: center; padding: 40px; color: #aaa; }
+.powered-by { text-align: center; margin-top: 40px; font-size: 12px; color: #bbb; }
+.powered-by a { color: #667eea; text-decoration: none; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="/dashboard/ezauth.iife.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  const API_URL = 'https://api.ezauth.org';
+  const PK = 'pk_test_D-_PoRhJddfRvs7Gfjc1TBv-Bfh1ubpy';
+  const TODOS_TABLE = 'todos';
+
+  const $ = (sel) => document.querySelector(sel);
+  const app = () => $('#app');
+
+  let ez = null;
+  let user = null;
+  let todosTableId = null;
+
+  // ── Session ──
+
+  function getSession() {
+    const s = sessionStorage.getItem('todo_session');
+    return s ? JSON.parse(s) : null;
+  }
+
+  function saveSession(data) {
+    sessionStorage.setItem('todo_session', JSON.stringify(data));
+  }
+
+  function clearSession() {
+    sessionStorage.removeItem('todo_session');
+    ez = null;
+    user = null;
+    renderLogin();
+  }
+
+  function initClient(accessToken) {
+    ez = new EZAuth.EZAuth({ baseUrl: API_URL, publishableKey: PK, accessToken });
+  }
+
+  // ── Router ──
+
+  async function boot() {
+    const session = getSession();
+    if (!session) { renderLogin(); return; }
+    initClient(session.access_token);
+    user = { email: session.email, user_id: session.user_id };
+    renderApp();
+    await loadTodos();
+  }
+
+  // ── Auth: Login ──
+
+  function renderLogin() {
+    app().innerHTML = `
+      <div class="auth-page">
+        <div class="auth-card">
+          <h1>Todo App</h1>
+          <p class="subtitle">Sign in with a magic code</p>
+          <p id="auth-error" class="error hidden"></p>
+          <div id="email-step">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="you@example.com" autofocus>
+            <button id="send-btn">Send Code</button>
+          </div>
+          <div id="code-step" class="hidden">
+            <p class="info">Check your email for a 6-digit code.</p>
+            <label for="code">Code</label>
+            <input type="text" id="code" placeholder="123456" maxlength="6" inputmode="numeric">
+            <button id="verify-btn">Verify</button>
+            <p style="text-align:center;margin-top:12px;"><a id="back-link" style="color:#667eea;cursor:pointer;font-size:13px;">Back</a></p>
+          </div>
+          <div class="switch">Don't have an account? <a id="go-signup">Sign up</a></div>
+        </div>
+      </div>
+    `;
+    $('#send-btn').onclick = sendLoginCode;
+    $('#email').onkeydown = e => { if (e.key === 'Enter') sendLoginCode(); };
+    $('#verify-btn').onclick = verifyLoginCode;
+    $('#code').onkeydown = e => { if (e.key === 'Enter') verifyLoginCode(); };
+    $('#back-link').onclick = () => { $('#email-step').classList.remove('hidden'); $('#code-step').classList.add('hidden'); $('#auth-error').classList.add('hidden'); };
+    $('#go-signup').onclick = renderSignup;
+  }
+
+  async function sendLoginCode() {
+    const email = $('#email').value.trim();
+    const err = $('#auth-error');
+    const btn = $('#send-btn');
+    if (!email) { err.textContent = 'Enter your email.'; err.classList.remove('hidden'); return; }
+    btn.disabled = true; btn.textContent = 'Sending...'; err.classList.add('hidden');
+    try {
+      const tmp = new EZAuth.EZAuth({ baseUrl: API_URL, publishableKey: PK });
+      await tmp.auth.signIn({ email, strategy: 'magic_link' });
+      $('#email-step').classList.add('hidden');
+      $('#code-step').classList.remove('hidden');
+      $('#code').focus();
+    } catch (e) {
+      err.textContent = e.message || 'Failed to send code'; err.classList.remove('hidden');
+    } finally { btn.disabled = false; btn.textContent = 'Send Code'; }
+  }
+
+  async function verifyLoginCode() {
+    const email = $('#email').value.trim();
+    const code = $('#code').value.trim();
+    const err = $('#auth-error');
+    const btn = $('#verify-btn');
+    if (!code) { err.textContent = 'Enter the code.'; err.classList.remove('hidden'); return; }
+    btn.disabled = true; btn.textContent = 'Verifying...'; err.classList.add('hidden');
+    try {
+      const tmp = new EZAuth.EZAuth({ baseUrl: API_URL, publishableKey: PK });
+      const res = await tmp.auth.verifyCode({ email, code });
+      saveSession({ access_token: res.access_token, refresh_token: res.refresh_token, email, user_id: res.user_id });
+      initClient(res.access_token);
+      user = { email, user_id: res.user_id };
+      renderApp();
+      await loadTodos();
+    } catch (e) {
+      err.textContent = e.message || 'Invalid code'; err.classList.remove('hidden');
+    } finally { btn.disabled = false; btn.textContent = 'Verify'; }
+  }
+
+  // ── Auth: Signup ──
+
+  function renderSignup() {
+    app().innerHTML = `
+      <div class="auth-page">
+        <div class="auth-card">
+          <h1>Todo App</h1>
+          <p class="subtitle">Create an account</p>
+          <p id="auth-error" class="error hidden"></p>
+          <div id="email-step">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="you@example.com" autofocus>
+            <button id="signup-btn">Sign Up</button>
+          </div>
+          <div id="code-step" class="hidden">
+            <p class="info">Check your email for a verification code.</p>
+            <label for="code">Code</label>
+            <input type="text" id="code" placeholder="123456" maxlength="6" inputmode="numeric">
+            <button id="verify-btn">Verify</button>
+            <p style="text-align:center;margin-top:12px;"><a id="back-link" style="color:#667eea;cursor:pointer;font-size:13px;">Back</a></p>
+          </div>
+          <div class="switch">Already have an account? <a id="go-login">Sign in</a></div>
+        </div>
+      </div>
+    `;
+    $('#signup-btn').onclick = doSignup;
+    $('#email').onkeydown = e => { if (e.key === 'Enter') doSignup(); };
+    $('#verify-btn').onclick = verifySignupCode;
+    $('#code').onkeydown = e => { if (e.key === 'Enter') verifySignupCode(); };
+    $('#back-link').onclick = () => { $('#email-step').classList.remove('hidden'); $('#code-step').classList.add('hidden'); $('#auth-error').classList.add('hidden'); };
+    $('#go-login').onclick = renderLogin;
+  }
+
+  async function doSignup() {
+    const email = $('#email').value.trim();
+    const err = $('#auth-error');
+    const btn = $('#signup-btn');
+    if (!email) { err.textContent = 'Enter your email.'; err.classList.remove('hidden'); return; }
+    btn.disabled = true; btn.textContent = 'Signing up...'; err.classList.add('hidden');
+    try {
+      const tmp = new EZAuth.EZAuth({ baseUrl: API_URL, publishableKey: PK });
+      await tmp.auth.signUp({ email });
+      $('#email-step').classList.add('hidden');
+      $('#code-step').classList.remove('hidden');
+      $('#code').focus();
+    } catch (e) {
+      err.textContent = e.message || 'Signup failed'; err.classList.remove('hidden');
+    } finally { btn.disabled = false; btn.textContent = 'Sign Up'; }
+  }
+
+  async function verifySignupCode() {
+    const email = $('#email').value.trim();
+    const code = $('#code').value.trim();
+    const err = $('#auth-error');
+    const btn = $('#verify-btn');
+    if (!code) { err.textContent = 'Enter the code.'; err.classList.remove('hidden'); return; }
+    btn.disabled = true; btn.textContent = 'Verifying...'; err.classList.add('hidden');
+    try {
+      const tmp = new EZAuth.EZAuth({ baseUrl: API_URL, publishableKey: PK });
+      const res = await tmp.auth.verifyCode({ email, code });
+      saveSession({ access_token: res.access_token, refresh_token: res.refresh_token, email, user_id: res.user_id });
+      initClient(res.access_token);
+      user = { email, user_id: res.user_id };
+      renderApp();
+      await loadTodos();
+    } catch (e) {
+      err.textContent = e.message || 'Invalid code'; err.classList.remove('hidden');
+    } finally { btn.disabled = false; btn.textContent = 'Verify'; }
+  }
+
+  // ── App Shell ──
+
+  function renderApp() {
+    app().innerHTML = `
+      <div class="app-header">
+        <h1>Todos</h1>
+        <div class="user-info">
+          <span>${esc(user.email)}</span>
+          <button id="logout-btn">Sign out</button>
+        </div>
+      </div>
+      <div class="todo-container">
+        <div class="add-form">
+          <input type="text" id="new-todo" placeholder="What needs to be done?" autofocus>
+          <button id="add-btn">Add</button>
+        </div>
+        <ul class="todo-list" id="todo-list">
+          <li class="loading">Loading...</li>
+        </ul>
+        <p class="powered-by">Powered by <a href="https://ezauth.org" target="_blank">EZAuth</a></p>
+      </div>
+    `;
+    $('#logout-btn').onclick = clearSession;
+    $('#add-btn').onclick = addTodo;
+    $('#new-todo').onkeydown = e => { if (e.key === 'Enter') addTodo(); };
+  }
+
+  function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  // ── Todos ──
+
+  async function resolveTodosTable() {
+    if (todosTableId) return todosTableId;
+    const res = await ez.tables.list();
+    const tables = res.tables || res || [];
+    const t = tables.find(t => t.name === TODOS_TABLE);
+    if (t) { todosTableId = t.id; return todosTableId; }
+    return null;
+  }
+
+  async function loadTodos() {
+    const list = $('#todo-list');
+    try {
+      const tableId = await resolveTodosTable();
+      if (!tableId) { list.innerHTML = '<li class="empty">No todos yet. Add one above!</li>'; return; }
+      const res = await ez.tables.rows.query(tableId, { sort: { field: 'created_at', dir: 'desc' }, limit: 100 });
+      const rows = res.rows || [];
+      if (rows.length === 0) { list.innerHTML = '<li class="empty">No todos yet. Add one above!</li>'; return; }
+      list.innerHTML = rows.map(r => todoHTML(r)).join('');
+      bindTodoEvents();
+    } catch (e) {
+      list.innerHTML = `<li class="empty" style="color:#dc3545;">Failed to load: ${esc(e.message)}</li>`;
+    }
+  }
+
+  function todoHTML(row) {
+    const d = row.data || {};
+    const done = d.done === true || d.done === 'true';
+    return `<li class="todo-item ${done ? 'done' : ''}" data-id="${esc(row.id)}">
+      <input type="checkbox" ${done ? 'checked' : ''}>
+      <span class="todo-text">${esc(d.text || '')}</span>
+      <button class="todo-delete">&times;</button>
+    </li>`;
+  }
+
+  function bindTodoEvents() {
+    document.querySelectorAll('.todo-item input[type="checkbox"]').forEach(cb => {
+      cb.onchange = () => toggleTodo(cb.closest('.todo-item').dataset.id, cb.checked);
+    });
+    document.querySelectorAll('.todo-delete').forEach(btn => {
+      btn.onclick = () => deleteTodo(btn.closest('.todo-item').dataset.id);
+    });
+  }
+
+  async function addTodo() {
+    const input = $('#new-todo');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    try {
+      let tableId = await resolveTodosTable();
+      if (!tableId) {
+        // Table doesn't exist yet — this will fail for non-admin users.
+        // The table should be pre-created by the app admin.
+        const list = $('#todo-list');
+        list.innerHTML = '<li class="empty" style="color:#dc3545;">Todos table not found. Please contact the app admin.</li>';
+        return;
+      }
+      await ez.tables.rows.insert(tableId, { data: { text, done: false } });
+      await loadTodos();
+    } catch (e) {
+      alert('Failed to add todo: ' + e.message);
+    }
+  }
+
+  async function toggleTodo(rowId, done) {
+    try {
+      await ez.tables.rows.update(todosTableId, rowId, { data: { done } });
+      await loadTodos();
+    } catch (e) { alert('Failed to update: ' + e.message); }
+  }
+
+  async function deleteTodo(rowId) {
+    const item = document.querySelector(`.todo-item[data-id="${rowId}"]`);
+    if (item) item.style.opacity = '0.4';
+    try {
+      await ez.tables.rows.delete(todosTableId, rowId);
+      await loadTodos();
+    } catch (e) { alert('Failed to delete: ' + e.message); }
+  }
+
+  // ── Boot ──
+  boot();
+
+})();
+</script>
+</body>
+</html>

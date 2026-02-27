@@ -59,6 +59,7 @@ async def create_application(
     primary_domain = form.get("primary_domain", "") or None
     email_from_name = form.get("email_from_name", "") or None
     email_from_address = form.get("email_from_address", "") or None
+    owner_email = form.get("owner_email", "") or None
 
     pk = generate_publishable_key(env)
     sk = generate_secret_key(env)
@@ -73,6 +74,7 @@ async def create_application(
         primary_domain=primary_domain,
         email_from_name=email_from_name,
         email_from_address=email_from_address,
+        owner_email=owner_email,
         jwk_private_pem=private_pem,
         jwk_kid=kid,
     )

@@ -71,22 +71,60 @@ async def resolve_application(
 AppDep = Annotated[Application, Depends(resolve_application)]
 
 
+async def _try_admin_jwt(db: DbSession, token: str) -> Application | None:
+    """Try to decode a token as an admin JWT. Returns Application if valid, None otherwise."""
+    try:
+        unverified = jwt.get_unverified_claims(token)
+    except JWTError:
+        return None
+    if not unverified.get("admin") or "aud" not in unverified:
+        return None
+    app_id = unverified["aud"]
+    result = await db.execute(select(Application).where(Application.id == uuid.UUID(app_id)))
+    app = result.scalars().first()
+    if app is None:
+        return None
+    private_key = load_pem_private_key(app.jwk_private_pem.encode(), password=None)
+    public_key = private_key.public_key()
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode()
+    try:
+        payload = jwt.decode(token, public_pem, algorithms=["RS256"], audience=str(app.id))
+    except JWTError:
+        return None
+    if not payload.get("admin"):
+        return None
+    return app
+
+
 async def require_secret_key(
     db: DbSession,
     authorization: str | None = Header(None),
 ) -> Application:
-    """Authenticate via secret key in Authorization: Bearer sk_..."""
+    """Authenticate via secret key in Authorization: Bearer sk_... or admin JWT."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing secret key")
 
-    secret_key = authorization[7:]
-    result = await db.execute(
-        select(Application).where(Application.secret_key == secret_key)
-    )
-    app = result.scalars().first()
-    if app is None:
-        raise HTTPException(status_code=401, detail="Invalid secret key")
-    return app
+    token = authorization[7:]
+
+    # Secret key auth
+    if token.startswith("sk_"):
+        result = await db.execute(
+            select(Application).where(Application.secret_key == token)
+        )
+        app = result.scalars().first()
+        if app is None:
+            raise HTTPException(status_code=401, detail="Invalid secret key")
+        return app
+
+    # Admin JWT auth
+    app = await _try_admin_jwt(db, token)
+    if app is not None:
+        return app
+
+    raise HTTPException(status_code=401, detail="Invalid secret key")
 
 
 SecretKeyApp = Annotated[Application, Depends(require_secret_key)]
@@ -172,6 +210,12 @@ async def resolve_app_auth(
         if app is None:
             raise HTTPException(status_code=401, detail="Invalid secret key")
         return AppAuth(app=app)
+
+    # 1b. Admin JWT auth → admin
+    if authorization and authorization.startswith("Bearer ") and not authorization[7:].startswith("sk_"):
+        admin_app = await _try_admin_jwt(db, authorization[7:])
+        if admin_app is not None:
+            return AppAuth(app=admin_app)
 
     # 2. Publishable key / host domain + session → user
     app = await resolve_application(db, request, x_publishable_key)

@@ -1,0 +1,9 @@
+Hi {{{ name }}},
+
+Your EZAuth dashboard login code for {{{ app_name }}}:
+
+    {{{ confirmation_code }}}
+
+This code expires in 15 minutes.
+
+If you didn't request this code, you can safely ignore this email.

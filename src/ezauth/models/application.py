@@ -37,6 +37,7 @@ class Application(Base, UUIDPrimaryKey, TimestampMixin):
     settings_json: Mapped[dict | None] = mapped_column(JSONB, default=dict)
     jwk_private_pem: Mapped[str] = mapped_column(Text, nullable=False)
     jwk_kid: Mapped[str] = mapped_column(String(64), nullable=False)
+    owner_email: Mapped[str | None] = mapped_column(String(320))
 
     tenant: Mapped["Tenant"] = relationship(back_populates="applications")  # noqa: F821
     users: Mapped[list["User"]] = relationship(  # noqa: F821

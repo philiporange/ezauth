@@ -9,6 +9,7 @@
     <dt>Secret Key</dt><dd class="mono secret" onclick="this.classList.toggle('revealed')">{{ app.secret_key }}</dd>
     <dt>Primary Domain</dt><dd>{{ app.primary_domain or '—' }}</dd>
     <dt>Email From</dt><dd>{{ app.email_from_name or '' }} &lt;{{ app.email_from_address or '—' }}&gt;</dd>
+    <dt>Owner Email</dt><dd>{{ app.owner_email or '—' }}</dd>
     <dt>JWK Kid</dt><dd class="mono">{{ app.jwk_kid }}</dd>
     <dt>Created</dt><dd>{{ app.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
 </dl>

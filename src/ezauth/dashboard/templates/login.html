@@ -11,9 +11,9 @@
         <h1>EZAuth</h1>
         {% if error %}<p class="error">{{ error }}</p>{% endif %}
         <form method="post" action="/dashboard/login">
-            <label for="password">Dashboard Password</label>
-            <input type="password" id="password" name="password" required autofocus>
-            <button type="submit">Sign In</button>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="admin@example.com" required autofocus>
+            <button type="submit">Send Code</button>
         </form>
     </div>
 </body>

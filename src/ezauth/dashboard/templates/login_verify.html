@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EZAuth - Verify Code</title>
+    <link rel="stylesheet" href="/dashboard/static/dashboard.css">
+</head>
+<body class="login-page">
+    <div class="login-card">
+        <h1>EZAuth</h1>
+        <p style="text-align:center;color:#666;margin-bottom:16px;">Check your email for a 6-digit code.</p>
+        {% if error %}<p class="error">{{ error }}</p>{% endif %}
+        <form method="post" action="/dashboard/login/verify">
+            <input type="hidden" name="email" value="{{ email }}">
+            <label for="code">Code</label>
+            <input type="text" id="code" name="code" placeholder="123456" maxlength="6" inputmode="numeric" required autofocus>
+            <button type="submit">Verify</button>
+        </form>
+        <p style="text-align:center;margin-top:16px;"><a href="/dashboard/login" style="color:#3498db;">Back</a></p>
+    </div>
+</body>
+</html>

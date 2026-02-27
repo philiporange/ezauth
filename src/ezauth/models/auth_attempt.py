@@ -13,6 +13,7 @@ class AuthAttemptType(str, enum.Enum):
     signup = "signup"
     signin = "signin"
     verify_email = "verify_email"
+    admin_login = "admin_login"
 
 
 class AuthAttemptStatus(str, enum.Enum):
