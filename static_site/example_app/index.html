@@ -53,6 +53,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .powered-by { text-align: center; margin-top: 40px; font-size: 12px; color: #bbb; }
 .powered-by a { color: #667eea; text-decoration: none; }
 .hidden { display: none; }
+
+/* Files */
+.files-section { margin-top: 32px; }
+.files-section h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+.upload-form { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
+.upload-form label.file-btn { padding: 10px 20px; background: #667eea; color: #fff; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+.upload-form label.file-btn:hover { background: #5a6fd6; }
+.upload-form .file-name { font-size: 13px; color: #888; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-form button { padding: 10px 20px; background: #667eea; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; width: auto; margin: 0; }
+.upload-form button:hover { background: #5a6fd6; }
+.upload-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+.file-list { list-style: none; }
+.file-item { display: flex; align-items: center; gap: 12px; background: #fff; padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.file-item .file-icon { font-size: 20px; flex-shrink: 0; width: 28px; text-align: center; }
+.file-item .file-info { flex: 1; min-width: 0; }
+.file-item .file-info .name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-item .file-info .meta { font-size: 12px; color: #999; margin-top: 2px; }
+.file-item a { color: #667eea; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.file-item a:hover { text-decoration: underline; }
+.file-item .file-delete { background: none; border: none; color: #ccc; cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: 4px; width: auto; margin: 0; line-height: 1; }
+.file-item .file-delete:hover { color: #dc3545; background: #fee; }
+.upload-progress { font-size: 13px; color: #667eea; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -66,6 +88,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   const API_URL = 'https://api.ezauth.org';
   const PK = 'pk_test_D-_PoRhJddfRvs7Gfjc1TBv-Bfh1ubpy';
   const TODOS_TABLE = 'todos';
+  const FILES_BUCKET = 'files';
 
   const $ = (sel) => document.querySelector(sel);
   const app = () => $('#app');
@@ -73,6 +96,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   let ez = null;
   let user = null;
   let todosTableId = null;
+  let filesBucketId = null;
 
   // ── Session ──
 
@@ -104,7 +128,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
     initClient(session.access_token);
     user = { email: session.email, user_id: session.user_id };
     renderApp();
-    await loadTodos();
+    await Promise.all([loadTodos(), loadFiles()]);
   }
 
   // ── Auth: Login ──
@@ -171,7 +195,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
       initClient(res.access_token);
       user = { email, user_id: res.user_id };
       renderApp();
-      await loadTodos();
+      await Promise.all([loadTodos(), loadFiles()]);
     } catch (e) {
       err.textContent = e.message || 'Invalid code'; err.classList.remove('hidden');
     } finally { btn.disabled = false; btn.textContent = 'Verify'; }
@@ -241,7 +265,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
       initClient(res.access_token);
       user = { email, user_id: res.user_id };
       renderApp();
-      await loadTodos();
+      await Promise.all([loadTodos(), loadFiles()]);
     } catch (e) {
       err.textContent = e.message || 'Invalid code'; err.classList.remove('hidden');
     } finally { btn.disabled = false; btn.textContent = 'Verify'; }
@@ -266,12 +290,31 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
         <ul class="todo-list" id="todo-list">
           <li class="loading">Loading...</li>
         </ul>
+        <div class="files-section">
+          <h2>Files</h2>
+          <div class="upload-form">
+            <label class="file-btn" for="file-input">Choose File</label>
+            <input type="file" id="file-input" style="display:none">
+            <span class="file-name" id="file-name">No file selected</span>
+            <button id="upload-btn" disabled>Upload</button>
+          </div>
+          <p id="upload-status" class="upload-progress hidden"></p>
+          <ul class="file-list" id="file-list">
+            <li class="loading">Loading...</li>
+          </ul>
+        </div>
         <p class="powered-by">Powered by <a href="https://ezauth.org" target="_blank">EZAuth</a></p>
       </div>
     `;
     $('#logout-btn').onclick = clearSession;
     $('#add-btn').onclick = addTodo;
     $('#new-todo').onkeydown = e => { if (e.key === 'Enter') addTodo(); };
+    $('#file-input').onchange = () => {
+      const file = $('#file-input').files[0];
+      $('#file-name').textContent = file ? file.name : 'No file selected';
+      $('#upload-btn').disabled = !file;
+    };
+    $('#upload-btn').onclick = uploadFile;
   }
 
   function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -355,6 +398,124 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
     try {
       await ez.tables.rows.delete(todosTableId, rowId);
       await loadTodos();
+    } catch (e) { alert('Failed to delete: ' + e.message); }
+  }
+
+  // ── Files ──
+
+  async function resolveFilesBucket() {
+    if (filesBucketId) return filesBucketId;
+    const res = await ez.buckets.list();
+    const buckets = res.buckets || res || [];
+    const b = buckets.find(b => b.name === FILES_BUCKET);
+    if (b) { filesBucketId = b.id; return filesBucketId; }
+    return null;
+  }
+
+  async function loadFiles() {
+    const list = $('#file-list');
+    if (!list) return;
+    try {
+      const bucketId = await resolveFilesBucket();
+      if (!bucketId) { list.innerHTML = '<li class="empty">No files yet.</li>'; return; }
+      const res = await ez.buckets.objects.list(bucketId, { limit: 50 });
+      const objects = res.objects || [];
+      if (objects.length === 0) { list.innerHTML = '<li class="empty">No files yet. Upload one above!</li>'; return; }
+      list.innerHTML = objects.map(o => fileHTML(o)).join('');
+      bindFileEvents();
+    } catch (e) {
+      list.innerHTML = `<li class="empty" style="color:#dc3545;">Failed to load files: ${esc(e.message)}</li>`;
+    }
+  }
+
+  function fileIcon(contentType) {
+    if (!contentType) return '\u{1F4C4}';
+    if (contentType.startsWith('image/')) return '\u{1F5BC}';
+    if (contentType.startsWith('video/')) return '\u{1F3AC}';
+    if (contentType.startsWith('audio/')) return '\u{1F3B5}';
+    if (contentType.includes('pdf')) return '\u{1F4D1}';
+    if (contentType.includes('zip') || contentType.includes('tar') || contentType.includes('gzip')) return '\u{1F4E6}';
+    return '\u{1F4C4}';
+  }
+
+  function formatSize(bytes) {
+    if (bytes == null) return '';
+    if (bytes === 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / Math.pow(1024, i)).toFixed(i ? 1 : 0) + ' ' + units[i];
+  }
+
+  function fileHTML(obj) {
+    return `<li class="file-item" data-key="${esc(obj.key)}">
+      <span class="file-icon">${fileIcon(obj.content_type)}</span>
+      <div class="file-info">
+        <div class="name">${esc(obj.key)}</div>
+        <div class="meta">${formatSize(obj.size_bytes || obj.size)} &middot; ${esc(obj.content_type || '')}</div>
+      </div>
+      <a class="file-download">Download</a>
+      <button class="file-delete">&times;</button>
+    </li>`;
+  }
+
+  function bindFileEvents() {
+    document.querySelectorAll('.file-download').forEach(a => {
+      a.onclick = () => downloadFile(a.closest('.file-item').dataset.key);
+    });
+    document.querySelectorAll('.file-delete').forEach(btn => {
+      btn.onclick = () => deleteFile(btn.closest('.file-item').dataset.key);
+    });
+  }
+
+  async function uploadFile() {
+    const input = $('#file-input');
+    const file = input.files[0];
+    if (!file) return;
+    const btn = $('#upload-btn');
+    const status = $('#upload-status');
+    btn.disabled = true;
+    status.textContent = 'Uploading...';
+    status.classList.remove('hidden');
+    try {
+      const bucketId = await resolveFilesBucket();
+      if (!bucketId) { status.textContent = 'Files bucket not found.'; status.style.color = '#dc3545'; return; }
+      const data = await file.arrayBuffer();
+      await ez.buckets.objects.put(bucketId, file.name, data, { contentType: file.type || 'application/octet-stream' });
+      input.value = '';
+      $('#file-name').textContent = 'No file selected';
+      status.classList.add('hidden');
+      await loadFiles();
+    } catch (e) {
+      status.textContent = 'Upload failed: ' + e.message;
+      status.style.color = '#dc3545';
+    } finally {
+      btn.disabled = !input.files[0];
+    }
+  }
+
+  async function downloadFile(key) {
+    try {
+      const res = await ez.buckets.objects.get(filesBucketId, key);
+      const blob = new Blob([res.data], { type: res.contentType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = key;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Download failed: ' + e.message);
+    }
+  }
+
+  async function deleteFile(key) {
+    const item = document.querySelector(`.file-item[data-key="${key}"]`);
+    if (item) item.style.opacity = '0.4';
+    try {
+      await ez.buckets.objects.delete(filesBucketId, key);
+      await loadFiles();
     } catch (e) { alert('Failed to delete: ' + e.message); }
   }
 

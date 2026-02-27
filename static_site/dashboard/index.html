@@ -327,8 +327,8 @@ button:hover, .btn:hover { background: #2980b9; }
       const userCount = usersRes.total != null ? usersRes.total : (usersRes.users || []).length;
       const tableCount = (tablesRes.tables || tablesRes || []).length;
       const bucketCount = (bucketsRes.buckets || bucketsRes || []).length;
-      const tableBytes = tableStorage ? (tableStorage.total_bytes || tableStorage.bytes || 0) : null;
-      const objectBytes = objectStorage ? (objectStorage.total_bytes || objectStorage.bytes || 0) : null;
+      const tableBytes = tableStorage ? (tableStorage.used_bytes ?? tableStorage.total_bytes ?? tableStorage.bytes ?? 0) : null;
+      const objectBytes = objectStorage ? (objectStorage.used_bytes ?? objectStorage.total_bytes ?? objectStorage.bytes ?? 0) : null;
 
       setContent(`
         <h2>Overview</h2>
