@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EZAuth - Verify Code</title>
+    <title>ezAuth - Verify Code</title>
     <link rel="stylesheet" href="/dashboard/static/dashboard.css">
 </head>
 <body class="login-page">
     <div class="login-card">
-        <h1>EZAuth</h1>
+        <h1>ezAuth</h1>
         <p style="text-align:center;color:#666;margin-bottom:16px;">Check your email for a 6-digit code.</p>
         {% if error %}<p class="error">{{ error }}</p>{% endif %}
         <form method="post" action="/dashboard/login/verify">

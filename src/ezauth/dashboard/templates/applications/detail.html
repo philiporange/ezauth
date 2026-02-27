@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}{{ app.name }} - EZAuth{% endblock %}
+{% block title %}{{ app.name }} - ezAuth{% endblock %}
 {% block content %}
 <h2>{{ app.name }}</h2>
 <dl>
@@ -16,5 +16,6 @@
 <div class="actions">
     <a href="/dashboard/domains?app_id={{ app.id }}" class="btn">Domains</a>
     <a href="/dashboard/users?app_id={{ app.id }}" class="btn">Users</a>
+    <a href="/dashboard/buckets?app_id={{ app.id }}" class="btn">Storage</a>
 </div>
 {% endblock %}

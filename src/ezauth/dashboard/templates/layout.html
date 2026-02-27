@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}EZAuth{% endblock %}</title>
+    <title>{% block title %}ezAuth{% endblock %}</title>
     <link rel="stylesheet" href="/dashboard/static/dashboard.css">
     <script src="/dashboard/static/htmx.min.js"></script>
 </head>
 <body>
     <nav class="sidebar">
-        <div class="sidebar-brand">EZAuth</div>
+        <div class="sidebar-brand">ezAuth</div>
         <a href="/dashboard/tenants">Tenants</a>
         <a href="/dashboard/applications">Applications</a>
         <a href="/dashboard/domains">Domains</a>
         <a href="/dashboard/users">Users</a>
+        <a href="/dashboard/buckets">Storage</a>
         <a href="/dashboard/email-templates">Email Templates</a>
         <a href="/dashboard/logout" class="logout">Logout</a>
     </nav>

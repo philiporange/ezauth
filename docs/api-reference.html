@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>API Reference - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html" class="active">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>REST API Reference</h1>
+  <p class="subtitle">Complete reference for all ezAuth API endpoints. All endpoints are prefixed with <code>/v1</code> unless noted.</p>
+
+  <h2>Authentication</h2>
+  <p>Endpoints use one of two auth modes:</p>
+  <ul>
+    <li><span class="badge badge-pub">Publishable</span> &mdash; send <code>X-Publishable-Key: pk_...</code> header. For frontend/user-facing operations.</li>
+    <li><span class="badge badge-secret">Secret</span> &mdash; send <code>Authorization: Bearer sk_...</code> header. For backend/admin operations.</li>
+  </ul>
+  <p>User-scoped endpoints (with publishable key) also require <code>Authorization: Bearer &lt;access_token&gt;</code>.</p>
+
+  <hr>
+
+  <!-- ── Auth Endpoints ──────────────────────────────────────────── -->
+  <h2 id="auth">Authentication Endpoints</h2>
+
+  <h3 id="post-challenges">POST /v1/challenges</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/challenges</span>
+    <span class="badge badge-pub">Publishable</span>
+  </div>
+  <p>Request a hashcash proof-of-work challenge (required before signup when <code>HASHCASH_ENABLED=true</code>).</p>
+  <h4>Response</h4>
+  <pre><code>{
+  <span class="str">"challenge"</span>: <span class="str">"random-hex-string"</span>,
+  <span class="str">"difficulty"</span>: <span class="num">5</span>,
+  <span class="str">"algorithm"</span>: <span class="str">"argon2id"</span>,
+  <span class="str">"params"</span>: {
+    <span class="str">"time_cost"</span>: <span class="num">2</span>,
+    <span class="str">"memory_cost"</span>: <span class="num">19456</span>,
+    <span class="str">"parallelism"</span>: <span class="num">1</span>,
+    <span class="str">"hash_len"</span>: <span class="num">32</span>
+  },
+  <span class="str">"expires_in"</span>: <span class="num">300</span>
+}</code></pre>
+
+  <h3 id="post-signups">POST /v1/signups</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/signups</span>
+    <span class="badge badge-pub">Publishable</span>
+  </div>
+  <p>Register a new user. Sends a verification email.</p>
+  <h4>Request Body</h4>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>email</code></td><td>string</td><td>Yes</td><td>User's email address</td></tr>
+    <tr><td><code>password</code></td><td>string</td><td>No</td><td>Password (if app has passwords enabled)</td></tr>
+    <tr><td><code>redirect_url</code></td><td>string</td><td>No</td><td>URL to redirect after email verification</td></tr>
+    <tr><td><code>hashcash</code></td><td>object</td><td>Conditional</td><td>Required when hashcash is enabled: <code>{ challenge, nonce }</code></td></tr>
+  </table>
+  <h4>Response <code>200</code></h4>
+  <pre><code>{ <span class="str">"status"</span>: <span class="str">"verification_sent"</span>, <span class="str">"user_id"</span>: <span class="str">"uuid"</span> }</code></pre>
+
+  <h3 id="post-signins">POST /v1/signins</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/signins</span>
+    <span class="badge badge-pub">Publishable</span>
+  </div>
+  <p>Sign in a user. Strategy determines the flow.</p>
+  <h4>Request Body</h4>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>email</code></td><td>string</td><td>Yes</td><td>User's email address</td></tr>
+    <tr><td><code>password</code></td><td>string</td><td>No</td><td>Required for <code>strategy: "password"</code></td></tr>
+    <tr><td><code>strategy</code></td><td>string</td><td>No</td><td><code>"magic_link"</code> (default) or <code>"password"</code></td></tr>
+    <tr><td><code>redirect_url</code></td><td>string</td><td>No</td><td>URL to redirect after magic link verification</td></tr>
+  </table>
+  <h4>Response (magic_link) <code>200</code></h4>
+  <pre><code>{ <span class="str">"status"</span>: <span class="str">"verification_sent"</span> }</code></pre>
+  <h4>Response (password) <code>200</code></h4>
+  <pre><code>{
+  <span class="str">"access_token"</span>: <span class="str">"eyJhbG..."</span>,
+  <span class="str">"refresh_token"</span>: <span class="str">"rt_..."</span>,
+  <span class="str">"user_id"</span>: <span class="str">"uuid"</span>,
+  <span class="str">"session_id"</span>: <span class="str">"uuid"</span>
+}</code></pre>
+
+  <h3 id="post-verify-code">POST /v1/verify-code</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/verify-code</span>
+    <span class="badge badge-pub">Publishable</span>
+  </div>
+  <p>Verify a 6-digit code sent to the user's email.</p>
+  <h4>Request Body</h4>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Required</th></tr>
+    <tr><td><code>email</code></td><td>string</td><td>Yes</td></tr>
+    <tr><td><code>code</code></td><td>string</td><td>Yes</td></tr>
+  </table>
+  <h4>Response <code>200</code></h4>
+  <pre><code>{
+  <span class="str">"access_token"</span>: <span class="str">"eyJhbG..."</span>,
+  <span class="str">"refresh_token"</span>: <span class="str">"rt_..."</span>,
+  <span class="str">"user_id"</span>: <span class="str">"uuid"</span>,
+  <span class="str">"session_id"</span>: <span class="str">"uuid"</span>
+}</code></pre>
+
+  <h3 id="get-verify">GET /v1/email/verify</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/email/verify?token=...</span>
+    <span class="badge badge-pub">Publishable</span>
+  </div>
+  <p>Verify an email via magic link token. Sets <code>__session</code> cookie and redirects to <code>redirect_url</code>.</p>
+
+  <h3 id="get-me">GET /v1/me</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/me</span>
+    <span class="badge badge-pub">Publishable + Session</span>
+  </div>
+  <p>Get the currently authenticated user. Reads from <code>__session</code> cookie or <code>Authorization: Bearer &lt;jwt&gt;</code>.</p>
+  <h4>Response <code>200</code></h4>
+  <pre><code>{
+  <span class="str">"user_id"</span>: <span class="str">"uuid"</span>,
+  <span class="str">"email"</span>: <span class="str">"alice@example.com"</span>,
+  <span class="str">"email_verified"</span>: <span class="kw">true</span>,
+  <span class="str">"is_bot"</span>: <span class="kw">false</span>
+}</code></pre>
+
+  <h3 id="post-refresh">POST /v1/tokens/session</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/tokens/session</span>
+    <span class="badge badge-pub">Publishable</span>
+  </div>
+  <p>Refresh an expired access token.</p>
+  <h4>Request Body</h4>
+  <pre><code>{ <span class="str">"refresh_token"</span>: <span class="str">"rt_..."</span> }</code></pre>
+  <h4>Response <code>200</code></h4>
+  <pre><code>{
+  <span class="str">"access_token"</span>: <span class="str">"eyJhbG..."</span>,
+  <span class="str">"refresh_token"</span>: <span class="str">"new_rt_..."</span>,
+  <span class="str">"user_id"</span>: <span class="str">"uuid"</span>,
+  <span class="str">"session_id"</span>: <span class="str">"uuid"</span>
+}</code></pre>
+
+  <h3 id="post-logout">POST /v1/sessions/logout</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/sessions/logout</span>
+    <span class="badge badge-pub">Publishable + Session</span>
+  </div>
+  <p>Sign out the current session. Revokes the session and clears the cookie.</p>
+  <h4>Response <code>200</code></h4>
+  <pre><code>{ <span class="str">"status"</span>: <span class="str">"logged_out"</span> }</code></pre>
+
+  <hr>
+
+  <!-- ── OAuth Endpoints ─────────────────────────────────────────── -->
+  <h2 id="oauth">OAuth Endpoints</h2>
+
+  <h3>GET /v1/oauth/{provider}/authorize</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/oauth/{provider}/authorize?redirect_url=...</span>
+    <span class="badge badge-pub">Publishable</span>
+  </div>
+  <p>Get the OAuth authorization URL. Supported providers: <code>google</code>, <code>apple</code>.</p>
+  <h4>Response <code>200</code></h4>
+  <pre><code>{ <span class="str">"authorization_url"</span>: <span class="str">"https://accounts.google.com/..."</span> }</code></pre>
+
+  <h3>GET /v1/oauth/google/callback</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/oauth/google/callback</span>
+  </div>
+  <p>Google OAuth callback. Handles code exchange, token verification, user upsert, and redirect.</p>
+
+  <h3>POST /v1/oauth/apple/callback</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/oauth/apple/callback</span>
+  </div>
+  <p>Apple OAuth callback (form_post response mode).</p>
+
+  <h3>GET /v1/oauth/providers</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/oauth/providers</span>
+    <span class="badge badge-secret">Secret</span>
+  </div>
+  <p>List configured OAuth providers (secrets redacted).</p>
+
+  <h3>POST /v1/oauth/providers</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/oauth/providers</span>
+    <span class="badge badge-secret">Secret</span>
+  </div>
+  <p>Configure an OAuth provider.</p>
+
+  <h3>DELETE /v1/oauth/providers/{provider}</h3>
+  <div class="endpoint">
+    <span class="badge badge-delete">DELETE</span>
+    <span class="path">/v1/oauth/providers/{provider}</span>
+    <span class="badge badge-secret">Secret</span>
+  </div>
+  <p>Remove an OAuth provider configuration.</p>
+
+  <hr>
+
+  <!-- ── SSO Endpoints ───────────────────────────────────────────── -->
+  <h2 id="sso">SSO Endpoints</h2>
+
+  <h3>GET /v1/sso/bridge</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/sso/bridge?return_to=...</span>
+    <span class="badge badge-pub">Publishable + Session</span>
+  </div>
+  <p>Generate a one-time SSO token and redirect to the target domain. Token expires in 60 seconds.</p>
+
+  <h3>POST /v1/sso/exchange</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/sso/exchange</span>
+    <span class="badge badge-pub">Publishable</span>
+  </div>
+  <p>Exchange a one-time SSO token for a session. Both apps must belong to the same tenant.</p>
+  <h4>Request Body</h4>
+  <pre><code>{ <span class="str">"token"</span>: <span class="str">"sso_token_string"</span> }</code></pre>
+
+  <hr>
+
+  <!-- ── Bot Endpoints ───────────────────────────────────────────── -->
+  <h2 id="bots">Bot Endpoints</h2>
+
+  <h3>POST /v1/bot/signup</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/bot/signup</span>
+    <span class="badge badge-pub">Publishable</span>
+  </div>
+  <p>Register a bot with a confirmed donation challenge and Ed25519 public key.</p>
+  <h4>Request Body</h4>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>challenge_id</code></td><td>string</td><td>Confirmed challenge ID from confirmations.info</td></tr>
+    <tr><td><code>public_key</code></td><td>string</td><td>Base64-encoded Ed25519 public key</td></tr>
+  </table>
+
+  <h3>POST /v1/bot/auth</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/bot/auth</span>
+    <span class="badge badge-pub">Publishable</span>
+  </div>
+  <p>Authenticate a bot by verifying an Ed25519 signature.</p>
+  <h4>Request Body</h4>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>bot_id</code></td><td>string</td><td>The bot's user ID</td></tr>
+    <tr><td><code>timestamp</code></td><td>integer</td><td>Current Unix timestamp (seconds)</td></tr>
+    <tr><td><code>signature</code></td><td>string</td><td>Base64-encoded Ed25519 signature of <code>ezauth:bot_auth:{app_id}:{bot_id}:{timestamp}</code></td></tr>
+  </table>
+
+  <hr>
+
+  <!-- ── User Management ─────────────────────────────────────────── -->
+  <h2 id="users">User Management</h2>
+
+  <h3>GET /v1/users</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/users?limit=50&amp;offset=0&amp;email=...</span>
+    <span class="badge badge-secret">Secret</span>
+  </div>
+  <p>List users for this application.</p>
+  <h4>Query Parameters</h4>
+  <table>
+    <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>limit</code></td><td>int</td><td>50</td><td>Max results per page</td></tr>
+    <tr><td><code>offset</code></td><td>int</td><td>0</td><td>Pagination offset</td></tr>
+    <tr><td><code>email</code></td><td>string</td><td>&mdash;</td><td>Filter by email (case-insensitive)</td></tr>
+  </table>
+  <h4>Response <code>200</code></h4>
+  <pre><code>{
+  <span class="str">"users"</span>: [
+    {
+      <span class="str">"id"</span>: <span class="str">"uuid"</span>,
+      <span class="str">"email"</span>: <span class="str">"alice@example.com"</span>,
+      <span class="str">"email_verified"</span>: <span class="kw">true</span>,
+      <span class="str">"is_bot"</span>: <span class="kw">false</span>,
+      <span class="str">"created_at"</span>: <span class="str">"2025-01-01T00:00:00Z"</span>,
+      <span class="str">"updated_at"</span>: <span class="str">"2025-01-01T00:00:00Z"</span>
+    }
+  ],
+  <span class="str">"total"</span>: <span class="num">1</span>
+}</code></pre>
+
+  <h3>POST /v1/users</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/users</span>
+    <span class="badge badge-secret">Secret</span>
+  </div>
+  <p>Create a user server-side (skips email verification).</p>
+  <h4>Request Body</h4>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Required</th></tr>
+    <tr><td><code>email</code></td><td>string</td><td>Yes</td></tr>
+    <tr><td><code>password</code></td><td>string</td><td>No</td></tr>
+  </table>
+
+  <h3>GET /v1/users/{user_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/users/{user_id}</span>
+    <span class="badge badge-secret">Secret</span>
+  </div>
+  <p>Get a specific user by ID.</p>
+
+  <hr>
+
+  <!-- ── Session Management ──────────────────────────────────────── -->
+  <h2 id="sessions">Session Management</h2>
+
+  <h3>POST /v1/sessions/revoke</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/sessions/revoke?session_id=...</span>
+    <span class="badge badge-secret">Secret</span>
+  </div>
+  <p>Revoke a session by its ID.</p>
+
+  <h3>POST /v1/sign_in_tokens</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/sign_in_tokens</span>
+    <span class="badge badge-secret">Secret</span>
+  </div>
+  <p>Create a short-lived sign-in token for server-to-server auth.</p>
+  <h4>Request Body</h4>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>user_id</code></td><td>string</td><td>&mdash;</td><td>User ID to create token for</td></tr>
+    <tr><td><code>expires_in_seconds</code></td><td>int</td><td>300</td><td>Token lifetime in seconds</td></tr>
+  </table>
+  <h4>Response <code>200</code></h4>
+  <pre><code>{
+  <span class="str">"token"</span>: <span class="str">"eyJhbG..."</span>,
+  <span class="str">"refresh_token"</span>: <span class="str">"rt_..."</span>,
+  <span class="str">"user_id"</span>: <span class="str">"uuid"</span>,
+  <span class="str">"session_id"</span>: <span class="str">"uuid"</span>,
+  <span class="str">"expires_at"</span>: <span class="str">"2025-01-01T00:05:00Z"</span>
+}</code></pre>
+
+  <hr>
+
+  <!-- ── Custom Tables ───────────────────────────────────────────── -->
+  <h2 id="tables">Custom Tables</h2>
+
+  <h3>POST /v1/tables</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/tables</span>
+    <span class="badge badge-secret">Secret</span> / <span class="badge badge-pub">Publishable + Session</span>
+  </div>
+  <p>Create a new custom table with optional column definitions.</p>
+  <h4>Request Body</h4>
+  <pre><code>{
+  <span class="str">"name"</span>: <span class="str">"contacts"</span>,
+  <span class="str">"columns"</span>: [
+    { <span class="str">"name"</span>: <span class="str">"name"</span>, <span class="str">"type"</span>: <span class="str">"text"</span>, <span class="str">"required"</span>: <span class="kw">true</span> },
+    { <span class="str">"name"</span>: <span class="str">"age"</span>, <span class="str">"type"</span>: <span class="str">"int"</span> }
+  ]
+}</code></pre>
+
+  <h3>GET /v1/tables</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/tables</span>
+    <span class="badge badge-secret">Secret</span> / <span class="badge badge-pub">Publishable + Session</span>
+  </div>
+  <p>List all tables for this application.</p>
+
+  <h3>GET /v1/tables/{table_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/tables/{table_id}</span>
+  </div>
+  <p>Get a table with its column definitions.</p>
+
+  <h3>DELETE /v1/tables/{table_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-delete">DELETE</span>
+    <span class="path">/v1/tables/{table_id}</span>
+  </div>
+  <p>Delete a table and all its columns and rows.</p>
+
+  <h3>POST /v1/tables/{table_id}/columns</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/tables/{table_id}/columns</span>
+  </div>
+  <p>Add a column to a table.</p>
+  <h4>Request Body</h4>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>name</code></td><td>string</td><td>Yes</td><td>Column name</td></tr>
+    <tr><td><code>type</code></td><td>string</td><td>Yes</td><td>Column type: <code>text</code>, <code>int</code>, <code>bool</code>, <code>float</code>, <code>date</code>, <code>json</code></td></tr>
+    <tr><td><code>required</code></td><td>bool</td><td>No</td><td>Whether the column is required (default: false)</td></tr>
+    <tr><td><code>default_value</code></td><td>any</td><td>No</td><td>Default value for the column</td></tr>
+    <tr><td><code>position</code></td><td>int</td><td>No</td><td>Column position/order</td></tr>
+  </table>
+
+  <h3>PATCH /v1/tables/{table_id}/columns/{column_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-patch">PATCH</span>
+    <span class="path">/v1/tables/{table_id}/columns/{column_id}</span>
+  </div>
+  <p>Update a column's properties.</p>
+
+  <h3>DELETE /v1/tables/{table_id}/columns/{column_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-delete">DELETE</span>
+    <span class="path">/v1/tables/{table_id}/columns/{column_id}</span>
+  </div>
+
+  <h3>POST /v1/tables/{table_id}/rows</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/tables/{table_id}/rows</span>
+  </div>
+  <p>Insert a row.</p>
+  <h4>Request Body</h4>
+  <pre><code>{
+  <span class="str">"data"</span>: { <span class="str">"name"</span>: <span class="str">"Alice"</span>, <span class="str">"age"</span>: <span class="num">30</span> },
+  <span class="str">"user_id"</span>: <span class="str">"optional-uuid"</span>  <span class="cm">// for user-scoped rows</span>
+}</code></pre>
+
+  <h3>GET /v1/tables/{table_id}/rows/{row_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/tables/{table_id}/rows/{row_id}</span>
+  </div>
+
+  <h3>PATCH /v1/tables/{table_id}/rows/{row_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-patch">PATCH</span>
+    <span class="path">/v1/tables/{table_id}/rows/{row_id}</span>
+  </div>
+  <p>Partial update of a row's data.</p>
+
+  <h3>DELETE /v1/tables/{table_id}/rows/{row_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-delete">DELETE</span>
+    <span class="path">/v1/tables/{table_id}/rows/{row_id}</span>
+  </div>
+
+  <h3>POST /v1/tables/{table_id}/rows/query</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/tables/{table_id}/rows/query</span>
+  </div>
+  <p>Query rows with filtering, sorting, and pagination.</p>
+  <h4>Request Body</h4>
+  <pre><code>{
+  <span class="str">"filter"</span>: { <span class="str">"field"</span>: <span class="str">"age"</span>, <span class="str">"op"</span>: <span class="str">"gte"</span>, <span class="str">"value"</span>: <span class="num">18</span> },
+  <span class="str">"sort"</span>: { <span class="str">"field"</span>: <span class="str">"name"</span>, <span class="str">"dir"</span>: <span class="str">"asc"</span> },
+  <span class="str">"limit"</span>: <span class="num">50</span>,
+  <span class="str">"cursor"</span>: <span class="kw">null</span>
+}</code></pre>
+
+  <h3>GET /v1/tables/storage</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/tables/storage</span>
+  </div>
+  <p>Get table storage usage for this application.</p>
+  <h4>Response <code>200</code></h4>
+  <pre><code>{ <span class="str">"used_bytes"</span>: <span class="num">1048576</span>, <span class="str">"limit_bytes"</span>: <span class="num">104857600</span>, <span class="str">"used_percent"</span>: <span class="num">1.0</span> }</code></pre>
+
+  <hr>
+
+  <!-- ── Object Storage ──────────────────────────────────────────── -->
+  <h2 id="storage">Object Storage</h2>
+
+  <h3>POST /v1/buckets</h3>
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/buckets</span>
+  </div>
+  <p>Create a storage bucket.</p>
+  <h4>Request Body</h4>
+  <pre><code>{ <span class="str">"name"</span>: <span class="str">"avatars"</span> }</code></pre>
+
+  <h3>GET /v1/buckets</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/buckets</span>
+  </div>
+  <p>List all buckets.</p>
+
+  <h3>GET /v1/buckets/{bucket_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/buckets/{bucket_id}</span>
+  </div>
+
+  <h3>DELETE /v1/buckets/{bucket_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-delete">DELETE</span>
+    <span class="path">/v1/buckets/{bucket_id}</span>
+  </div>
+
+  <h3>PUT /v1/buckets/{bucket_id}/objects/{key}</h3>
+  <div class="endpoint">
+    <span class="badge badge-put">PUT</span>
+    <span class="path">/v1/buckets/{bucket_id}/objects/{key}?user_id=...</span>
+  </div>
+  <p>Upload an object. Send raw bytes with the appropriate <code>Content-Type</code> header.</p>
+
+  <h3>GET /v1/buckets/{bucket_id}/objects/{key}</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/buckets/{bucket_id}/objects/{key}?user_id=...</span>
+  </div>
+  <p>Download an object. Returns raw bytes with the stored content type.</p>
+
+  <h3>DELETE /v1/buckets/{bucket_id}/objects/{key}</h3>
+  <div class="endpoint">
+    <span class="badge badge-delete">DELETE</span>
+    <span class="path">/v1/buckets/{bucket_id}/objects/{key}?user_id=...</span>
+  </div>
+
+  <h3>GET /v1/buckets/{bucket_id}/objects</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/buckets/{bucket_id}/objects?user_id=...&amp;limit=50&amp;cursor=...</span>
+  </div>
+  <p>List objects in a bucket.</p>
+
+  <h3>GET /v1/buckets/storage</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/v1/buckets/storage</span>
+  </div>
+  <p>Get object storage usage for this application.</p>
+
+  <hr>
+
+  <!-- ── JWKS ────────────────────────────────────────────────────── -->
+  <h2 id="jwks">Public Endpoints</h2>
+
+  <h3>GET /.well-known/jwks.json</h3>
+  <div class="endpoint">
+    <span class="badge badge-get">GET</span>
+    <span class="path">/.well-known/jwks.json?app_id=...</span>
+    <span style="font-size:13px;color:var(--text-muted)">Public (no auth)</span>
+  </div>
+  <p>Returns the JSON Web Key Set for verifying JWTs. Resolves the application from the <code>app_id</code> query parameter or from the <code>Host</code> header (via domain lookup).</p>
+  <h4>Response <code>200</code></h4>
+  <pre><code>{
+  <span class="str">"keys"</span>: [
+    {
+      <span class="str">"kty"</span>: <span class="str">"RSA"</span>,
+      <span class="str">"kid"</span>: <span class="str">"key-id"</span>,
+      <span class="str">"use"</span>: <span class="str">"sig"</span>,
+      <span class="str">"alg"</span>: <span class="str">"RS256"</span>,
+      <span class="str">"n"</span>: <span class="str">"..."</span>,
+      <span class="str">"e"</span>: <span class="str">"AQAB"</span>
+    }
+  ]
+}</code></pre>
+</main>
+</body>
+</html>

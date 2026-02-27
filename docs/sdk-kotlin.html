@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kotlin SDK - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html" class="active">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Kotlin Client</h1>
+  <p class="subtitle">Universal Kotlin client for ezAuth. Uses OkHttp, kotlinx.serialization, and Kotlin coroutines. JVM 17+ and Android.</p>
+
+  <h2>Installation</h2>
+  <h3>Gradle (Kotlin DSL)</h3>
+  <pre><code><span class="fn">dependencies</span> {
+    <span class="fn">implementation</span>(<span class="str">"org.ezauth:ezauth-client:0.1.0"</span>)
+}</code></pre>
+  <h3>Gradle (Groovy)</h3>
+  <pre><code><span class="fn">dependencies</span> {
+    <span class="fn">implementation</span> <span class="str">'org.ezauth:ezauth-client:0.1.0'</span>
+}</code></pre>
+
+  <h2>Initialization</h2>
+  <pre><code><span class="kw">import</span> <span class="type">org.ezauth.client</span>.*
+
+<span class="cm">// Backend (secret key)</span>
+<span class="kw">val</span> <span class="var">ez</span> = <span class="type">EZAuth</span>(
+    <span class="param">baseUrl</span> = <span class="str">"https://auth.example.com"</span>,
+    <span class="param">secretKey</span> = <span class="str">"sk_live_..."</span>,
+)
+
+<span class="cm">// Frontend (publishable key)</span>
+<span class="kw">val</span> <span class="var">ez</span> = <span class="type">EZAuth</span>(
+    <span class="param">baseUrl</span> = <span class="str">"https://auth.example.com"</span>,
+    <span class="param">publishableKey</span> = <span class="str">"pk_live_..."</span>,
+)</code></pre>
+
+  <h3>Custom OkHttpClient</h3>
+  <pre><code><span class="kw">import</span> <span class="type">okhttp3.OkHttpClient</span>
+<span class="kw">import</span> <span class="type">java.util.concurrent.TimeUnit</span>
+
+<span class="kw">val</span> <span class="var">ez</span> = <span class="type">EZAuth</span>(
+    <span class="param">baseUrl</span> = <span class="str">"https://auth.example.com"</span>,
+    <span class="param">secretKey</span> = <span class="str">"sk_live_..."</span>,
+    <span class="param">httpClient</span> = <span class="type">OkHttpClient</span>.<span class="type">Builder</span>()
+        .<span class="fn">connectTimeout</span>(<span class="num">10</span>, <span class="type">TimeUnit</span>.SECONDS)
+        .<span class="fn">readTimeout</span>(<span class="num">30</span>, <span class="type">TimeUnit</span>.SECONDS)
+        .<span class="fn">build</span>(),
+)</code></pre>
+
+  <h2>Error Handling</h2>
+  <pre><code><span class="kw">try</span> {
+    <span class="var">ez</span>.users.<span class="fn">get</span>(<span class="str">"nonexistent"</span>)
+} <span class="kw">catch</span> (<span class="var">e</span>: <span class="type">EZAuthError</span>) {
+    <span class="fn">println</span>(<span class="var">e</span>.message) <span class="cm">// "User not found"</span>
+    <span class="fn">println</span>(<span class="var">e</span>.status)  <span class="cm">// 404</span>
+}</code></pre>
+
+  <hr>
+
+  <h2>ez.auth (Publishable Key)</h2>
+
+  <h3>signUp(email, password?, redirectUrl?)</h3>
+  <pre><code><span class="kw">val</span> <span class="var">result</span> = <span class="var">ez</span>.auth.<span class="fn">signUp</span>(
+    <span class="param">email</span> = <span class="str">"alice@example.com"</span>,
+    <span class="param">password</span> = <span class="str">"s3cret"</span>,
+)</code></pre>
+
+  <h3>signIn(email, password?, strategy?, redirectUrl?)</h3>
+  <pre><code><span class="cm">// Password</span>
+<span class="kw">val</span> <span class="var">session</span> = <span class="var">ez</span>.auth.<span class="fn">signIn</span>(
+    <span class="param">email</span> = <span class="str">"alice@example.com"</span>,
+    <span class="param">password</span> = <span class="str">"s3cret"</span>,
+)
+
+<span class="cm">// Magic link</span>
+<span class="var">ez</span>.auth.<span class="fn">signIn</span>(
+    <span class="param">email</span> = <span class="str">"alice@example.com"</span>,
+    <span class="param">redirectUrl</span> = <span class="str">"https://myapp.com/dashboard"</span>,
+)</code></pre>
+
+  <h3>verifyCode(email, code)</h3>
+  <pre><code><span class="kw">val</span> <span class="var">session</span> = <span class="var">ez</span>.auth.<span class="fn">verifyCode</span>(
+    <span class="param">email</span> = <span class="str">"alice@example.com"</span>,
+    <span class="param">code</span> = <span class="str">"482917"</span>,
+)</code></pre>
+
+  <h3>getSession() / signOut() / refreshToken(refreshToken)</h3>
+  <pre><code><span class="kw">val</span> <span class="var">me</span> = <span class="var">ez</span>.auth.<span class="fn">getSession</span>()
+<span class="var">ez</span>.auth.<span class="fn">signOut</span>()
+<span class="kw">val</span> <span class="var">newSession</span> = <span class="var">ez</span>.auth.<span class="fn">refreshToken</span>(<span class="str">"rt_..."</span>)</code></pre>
+
+  <h3>ssoExchange(token) / signInWithOAuth(provider, redirectUrl)</h3>
+  <pre><code><span class="kw">val</span> <span class="var">session</span> = <span class="var">ez</span>.auth.<span class="fn">ssoExchange</span>(<span class="str">"sso_token"</span>)
+
+<span class="kw">val</span> <span class="var">oauthResult</span> = <span class="var">ez</span>.auth.<span class="fn">signInWithOAuth</span>(
+    <span class="param">provider</span> = <span class="str">"google"</span>,
+    <span class="param">redirectUrl</span> = <span class="str">"https://myapp.com/callback"</span>,
+)
+<span class="cm">// Open oauthResult.authorizationUrl in a browser</span></code></pre>
+
+  <hr>
+
+  <h2>ez.users (Secret Key)</h2>
+  <pre><code><span class="kw">val</span> <span class="var">list</span> = <span class="var">ez</span>.users.<span class="fn">list</span>(<span class="param">limit</span> = <span class="num">10</span>)
+<span class="kw">val</span> <span class="var">user</span> = <span class="var">ez</span>.users.<span class="fn">create</span>(<span class="param">email</span> = <span class="str">"bob@example.com"</span>)
+<span class="kw">val</span> <span class="var">found</span> = <span class="var">ez</span>.users.<span class="fn">get</span>(user.id)</code></pre>
+
+  <hr>
+
+  <h2>ez.sessions (Secret Key)</h2>
+  <pre><code><span class="var">ez</span>.sessions.<span class="fn">revoke</span>(<span class="str">"session-uuid"</span>)
+<span class="kw">val</span> <span class="var">token</span> = <span class="var">ez</span>.sessions.<span class="fn">createSignInToken</span>(<span class="param">userId</span> = user.id)</code></pre>
+
+  <hr>
+
+  <h2>ez.tables</h2>
+  <pre><code><span class="kw">import</span> <span class="type">kotlinx.serialization.json</span>.*
+
+<span class="kw">val</span> <span class="var">table</span> = <span class="var">ez</span>.tables.<span class="fn">create</span>(
+    <span class="param">name</span> = <span class="str">"contacts"</span>,
+    <span class="param">columns</span> = <span class="fn">listOf</span>(
+        <span class="type">ColumnDefinition</span>(<span class="param">name</span> = <span class="str">"name"</span>, <span class="param">type</span> = <span class="str">"text"</span>, <span class="param">required</span> = <span class="kw">true</span>),
+        <span class="type">ColumnDefinition</span>(<span class="param">name</span> = <span class="str">"age"</span>, <span class="param">type</span> = <span class="str">"int"</span>),
+    ),
+)
+
+<span class="kw">val</span> <span class="var">row</span> = <span class="var">ez</span>.tables.rows.<span class="fn">insert</span>(
+    <span class="param">tableId</span> = table.id,
+    <span class="param">data</span> = <span class="fn">buildJsonObject</span> {
+        <span class="fn">put</span>(<span class="str">"name"</span>, <span class="type">JsonPrimitive</span>(<span class="str">"Alice"</span>))
+        <span class="fn">put</span>(<span class="str">"age"</span>, <span class="type">JsonPrimitive</span>(<span class="num">30</span>))
+    },
+)
+
+<span class="kw">val</span> <span class="var">results</span> = <span class="var">ez</span>.tables.rows.<span class="fn">query</span>(
+    <span class="param">tableId</span> = table.id,
+    <span class="param">filter</span> = <span class="fn">buildJsonObject</span> {
+        <span class="fn">put</span>(<span class="str">"field"</span>, <span class="type">JsonPrimitive</span>(<span class="str">"age"</span>))
+        <span class="fn">put</span>(<span class="str">"op"</span>, <span class="type">JsonPrimitive</span>(<span class="str">"gte"</span>))
+        <span class="fn">put</span>(<span class="str">"value"</span>, <span class="type">JsonPrimitive</span>(<span class="num">18</span>))
+    },
+    <span class="param">sort</span> = <span class="type">SortSpec</span>(<span class="param">field</span> = <span class="str">"name"</span>, <span class="param">dir</span> = <span class="str">"asc"</span>),
+    <span class="param">limit</span> = <span class="num">50</span>,
+)</code></pre>
+
+  <hr>
+
+  <h2>ez.storage</h2>
+  <pre><code><span class="kw">val</span> <span class="var">usage</span> = <span class="var">ez</span>.storage.<span class="fn">get</span>()
+<span class="fn">println</span>(<span class="str">"${usage.used_percent}% used"</span>)</code></pre>
+
+  <h2>Dependencies</h2>
+  <table>
+    <tr><th>Library</th><th>Version</th></tr>
+    <tr><td>OkHttp</td><td>4.12+</td></tr>
+    <tr><td>kotlinx-serialization-json</td><td>1.7+</td></tr>
+    <tr><td>kotlinx-coroutines-core</td><td>1.9+</td></tr>
+  </table>
+</main>
+</body>
+</html>

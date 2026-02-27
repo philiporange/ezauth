@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swift SDK - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html" class="active">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Swift Client</h1>
+  <p class="subtitle">Universal Swift client for ezAuth. Zero dependencies. Uses Foundation URLSession with async/await. Requires Swift 5.9+, iOS 15+, macOS 12+.</p>
+
+  <h2>Installation</h2>
+  <h3>Swift Package Manager</h3>
+  <pre><code><span class="cm">// Package.swift</span>
+<span class="prop">dependencies</span>: [
+    .<span class="fn">package</span>(<span class="param">url</span>: <span class="str">"https://github.com/your-org/ezauth-swift.git"</span>, <span class="param">from</span>: <span class="str">"0.1.0"</span>),
+],
+<span class="prop">targets</span>: [
+    .<span class="fn">target</span>(<span class="param">name</span>: <span class="str">"YourApp"</span>, <span class="param">dependencies</span>: [<span class="str">"EZAuth"</span>]),
+]</code></pre>
+  <p>Or in Xcode: File &gt; Add Package Dependencies and paste the repository URL.</p>
+
+  <h2>Initialization</h2>
+  <pre><code><span class="kw">import</span> <span class="type">EZAuth</span>
+
+<span class="cm">// Backend (secret key)</span>
+<span class="kw">let</span> <span class="var">ez</span> = <span class="type">EZAuth</span>(
+    <span class="param">baseURL</span>: <span class="str">"https://auth.example.com"</span>,
+    <span class="param">secretKey</span>: <span class="str">"sk_live_..."</span>
+)
+
+<span class="cm">// Frontend (publishable key)</span>
+<span class="kw">let</span> <span class="var">ez</span> = <span class="type">EZAuth</span>(
+    <span class="param">baseURL</span>: <span class="str">"https://auth.example.com"</span>,
+    <span class="param">publishableKey</span>: <span class="str">"pk_live_..."</span>
+)</code></pre>
+
+  <h3>Constructor Parameters</h3>
+  <table>
+    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>baseURL</code></td><td>String</td><td>EZAuth instance URL</td></tr>
+    <tr><td><code>secretKey</code></td><td>String?</td><td>Secret key for admin operations</td></tr>
+    <tr><td><code>publishableKey</code></td><td>String?</td><td>Publishable key for frontend auth</td></tr>
+    <tr><td><code>accessToken</code></td><td>String?</td><td>Access token for user-scoped operations</td></tr>
+    <tr><td><code>session</code></td><td>URLSession</td><td>Custom URLSession (default: <code>.shared</code>)</td></tr>
+  </table>
+
+  <h2>Error Handling</h2>
+  <pre><code><span class="kw">do</span> {
+    <span class="kw">let</span> <span class="var">user</span> = <span class="kw">try await</span> <span class="var">ez</span>.users.<span class="fn">get</span>(<span class="str">"nonexistent"</span>)
+} <span class="kw">catch let</span> <span class="var">error</span> <span class="kw">as</span> <span class="type">EZAuthError</span> {
+    <span class="fn">print</span>(<span class="var">error</span>.message) <span class="cm">// "User not found"</span>
+    <span class="fn">print</span>(<span class="var">error</span>.status)  <span class="cm">// 404</span>
+}</code></pre>
+
+  <hr>
+
+  <h2>ez.auth (Publishable Key)</h2>
+
+  <h3>signUp(email:password:redirectUrl:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">result</span> = <span class="kw">try await</span> <span class="var">ez</span>.auth.<span class="fn">signUp</span>(
+    <span class="param">email</span>: <span class="str">"alice@example.com"</span>,
+    <span class="param">password</span>: <span class="str">"s3cret"</span>
+)
+<span class="cm">// result.status, result.user_id</span></code></pre>
+
+  <h3>signIn(email:password:strategy:redirectUrl:)</h3>
+  <pre><code><span class="cm">// Password</span>
+<span class="kw">let</span> <span class="var">session</span> = <span class="kw">try await</span> <span class="var">ez</span>.auth.<span class="fn">signIn</span>(
+    <span class="param">email</span>: <span class="str">"alice@example.com"</span>,
+    <span class="param">password</span>: <span class="str">"s3cret"</span>
+)
+
+<span class="cm">// Magic link</span>
+<span class="kw">let</span> <span class="var">result</span> = <span class="kw">try await</span> <span class="var">ez</span>.auth.<span class="fn">signIn</span>(
+    <span class="param">email</span>: <span class="str">"alice@example.com"</span>,
+    <span class="param">redirectUrl</span>: <span class="str">"https://myapp.com/dashboard"</span>
+)</code></pre>
+
+  <h3>verifyCode(email:code:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">session</span> = <span class="kw">try await</span> <span class="var">ez</span>.auth.<span class="fn">verifyCode</span>(
+    <span class="param">email</span>: <span class="str">"alice@example.com"</span>,
+    <span class="param">code</span>: <span class="str">"482917"</span>
+)
+<span class="cm">// session.access_token, session.refresh_token</span></code></pre>
+
+  <h3>getSession()</h3>
+  <pre><code><span class="kw">let</span> <span class="var">me</span> = <span class="kw">try await</span> <span class="var">ez</span>.auth.<span class="fn">getSession</span>()
+<span class="cm">// me.user_id, me.email, me.email_verified</span></code></pre>
+
+  <h3>signOut()</h3>
+  <pre><code><span class="kw">try await</span> <span class="var">ez</span>.auth.<span class="fn">signOut</span>()</code></pre>
+
+  <h3>refreshToken(_:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">newSession</span> = <span class="kw">try await</span> <span class="var">ez</span>.auth.<span class="fn">refreshToken</span>(<span class="str">"rt_..."</span>)</code></pre>
+
+  <h3>ssoExchange(token:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">session</span> = <span class="kw">try await</span> <span class="var">ez</span>.auth.<span class="fn">ssoExchange</span>(<span class="param">token</span>: <span class="str">"sso_token"</span>)</code></pre>
+
+  <h3>signInWithOAuth(provider:redirectUrl:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">result</span> = <span class="kw">try await</span> <span class="var">ez</span>.auth.<span class="fn">signInWithOAuth</span>(
+    <span class="param">provider</span>: <span class="str">"google"</span>,
+    <span class="param">redirectUrl</span>: <span class="str">"https://myapp.com/callback"</span>
+)
+<span class="cm">// Open result.authorization_url in a browser/webview</span></code></pre>
+
+  <hr>
+
+  <h2>ez.users (Secret Key)</h2>
+
+  <h3>list(limit:offset:email:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">result</span> = <span class="kw">try await</span> <span class="var">ez</span>.users.<span class="fn">list</span>(<span class="param">limit</span>: <span class="num">10</span>)
+<span class="cm">// result.users, result.total</span></code></pre>
+
+  <h3>create(email:password:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">user</span> = <span class="kw">try await</span> <span class="var">ez</span>.users.<span class="fn">create</span>(<span class="param">email</span>: <span class="str">"bob@example.com"</span>)</code></pre>
+
+  <h3>get(_:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">user</span> = <span class="kw">try await</span> <span class="var">ez</span>.users.<span class="fn">get</span>(<span class="str">"user-uuid"</span>)</code></pre>
+
+  <hr>
+
+  <h2>ez.sessions (Secret Key)</h2>
+
+  <h3>revoke(_:)</h3>
+  <pre><code><span class="kw">try await</span> <span class="var">ez</span>.sessions.<span class="fn">revoke</span>(<span class="str">"session-uuid"</span>)</code></pre>
+
+  <h3>createSignInToken(userId:expiresInSeconds:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">token</span> = <span class="kw">try await</span> <span class="var">ez</span>.sessions.<span class="fn">createSignInToken</span>(
+    <span class="param">userId</span>: <span class="str">"user-uuid"</span>,
+    <span class="param">expiresInSeconds</span>: <span class="num">300</span>
+)</code></pre>
+
+  <hr>
+
+  <h2>ez.tables</h2>
+
+  <h3>create(name:columns:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">table</span> = <span class="kw">try await</span> <span class="var">ez</span>.tables.<span class="fn">create</span>(
+    <span class="param">name</span>: <span class="str">"contacts"</span>,
+    <span class="param">columns</span>: [
+        <span class="type">ColumnDefinition</span>(<span class="param">name</span>: <span class="str">"name"</span>, <span class="param">type</span>: <span class="str">"text"</span>, <span class="param">required</span>: <span class="kw">true</span>),
+        <span class="type">ColumnDefinition</span>(<span class="param">name</span>: <span class="str">"age"</span>, <span class="param">type</span>: <span class="str">"int"</span>),
+    ]
+)</code></pre>
+
+  <h3>list() / get(_:) / delete(_:)</h3>
+  <pre><code><span class="kw">let</span> <span class="var">list</span> = <span class="kw">try await</span> <span class="var">ez</span>.tables.<span class="fn">list</span>()
+<span class="kw">let</span> <span class="var">table</span> = <span class="kw">try await</span> <span class="var">ez</span>.tables.<span class="fn">get</span>(<span class="str">"table-uuid"</span>)
+<span class="kw">try await</span> <span class="var">ez</span>.tables.<span class="fn">delete</span>(<span class="str">"table-uuid"</span>)</code></pre>
+
+  <h3>tables.rows.insert / get / update / delete / query</h3>
+  <pre><code><span class="kw">let</span> <span class="var">row</span> = <span class="kw">try await</span> <span class="var">ez</span>.tables.rows.<span class="fn">insert</span>(
+    <span class="param">tableId</span>: table.id,
+    <span class="param">data</span>: [<span class="str">"name"</span>: <span class="str">"Alice"</span>, <span class="str">"age"</span>: <span class="num">30</span>]
+)
+
+<span class="kw">let</span> <span class="var">results</span> = <span class="kw">try await</span> <span class="var">ez</span>.tables.rows.<span class="fn">query</span>(
+    <span class="param">tableId</span>: table.id,
+    <span class="param">filter</span>: [<span class="str">"field"</span>: <span class="str">"age"</span>, <span class="str">"op"</span>: <span class="str">"gte"</span>, <span class="str">"value"</span>: <span class="num">18</span>],
+    <span class="param">sort</span>: <span class="type">SortSpec</span>(<span class="param">field</span>: <span class="str">"name"</span>, <span class="param">dir</span>: <span class="str">"asc"</span>),
+    <span class="param">limit</span>: <span class="num">50</span>
+)</code></pre>
+
+  <hr>
+
+  <h2>ez.buckets</h2>
+  <pre><code><span class="cm">// Create and manage buckets</span>
+<span class="kw">let</span> <span class="var">bucket</span> = <span class="kw">try await</span> <span class="var">ez</span>.buckets.<span class="fn">create</span>(<span class="param">name</span>: <span class="str">"avatars"</span>)
+<span class="kw">let</span> <span class="var">list</span> = <span class="kw">try await</span> <span class="var">ez</span>.buckets.<span class="fn">list</span>()
+
+<span class="cm">// Upload and download objects</span>
+<span class="kw">let</span> <span class="var">obj</span> = <span class="kw">try await</span> <span class="var">ez</span>.buckets.objects.<span class="fn">put</span>(
+    <span class="param">bucketId</span>: bucket.id,
+    <span class="param">key</span>: <span class="str">"avatar.png"</span>,
+    <span class="param">data</span>: imageData,
+    <span class="param">contentType</span>: <span class="str">"image/png"</span>
+)
+
+<span class="kw">let</span> (<span class="var">data</span>, <span class="var">contentType</span>) = <span class="kw">try await</span> <span class="var">ez</span>.buckets.objects.<span class="fn">get</span>(
+    <span class="param">bucketId</span>: bucket.id,
+    <span class="param">key</span>: <span class="str">"avatar.png"</span>
+)</code></pre>
+
+  <hr>
+
+  <h2>ez.storage</h2>
+  <pre><code><span class="kw">let</span> <span class="var">tableUsage</span> = <span class="kw">try await</span> <span class="var">ez</span>.storage.<span class="fn">tables</span>()
+<span class="kw">let</span> <span class="var">objectUsage</span> = <span class="kw">try await</span> <span class="var">ez</span>.storage.<span class="fn">objects</span>()
+<span class="cm">// .used_bytes, .limit_bytes, .used_percent</span></code></pre>
+
+  <hr>
+
+  <h2>JSONValue</h2>
+  <p>Dynamic data (row values, filter specs) uses the <code>JSONValue</code> enum, which supports Swift literal syntax:</p>
+  <pre><code><span class="kw">let</span> <span class="var">data</span>: [<span class="type">String</span>: <span class="type">JSONValue</span>] = [
+    <span class="str">"name"</span>: <span class="str">"Alice"</span>,       <span class="cm">// .string</span>
+    <span class="str">"age"</span>: <span class="num">30</span>,             <span class="cm">// .int</span>
+    <span class="str">"active"</span>: <span class="kw">true</span>,       <span class="cm">// .bool</span>
+    <span class="str">"score"</span>: <span class="num">9.5</span>,         <span class="cm">// .double</span>
+    <span class="str">"tags"</span>: [<span class="str">"swift"</span>],    <span class="cm">// .array</span>
+    <span class="str">"meta"</span>: <span class="kw">nil</span>,          <span class="cm">// .null</span>
+]</code></pre>
+</main>
+</body>
+</html>

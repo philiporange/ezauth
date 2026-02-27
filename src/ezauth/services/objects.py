@@ -36,6 +36,8 @@ async def create_bucket(
     *,
     app_id: uuid.UUID,
     name: str,
+    max_size_bytes: int | None = None,
+    max_size_bytes_per_user: int | None = None,
 ) -> Bucket:
     existing = await db.execute(
         select(Bucket).where(Bucket.app_id == app_id, Bucket.name == name)
@@ -43,7 +45,12 @@ async def create_bucket(
     if existing.scalars().first():
         raise AuthError(f"Bucket '{name}' already exists", code="bucket_exists")
 
-    bucket = Bucket(app_id=app_id, name=name)
+    bucket = Bucket(
+        app_id=app_id,
+        name=name,
+        max_size_bytes=max_size_bytes,
+        max_size_bytes_per_user=max_size_bytes_per_user,
+    )
     db.add(bucket)
     await db.flush()
     return bucket
@@ -75,6 +82,24 @@ async def get_bucket(
     bucket = result.scalars().first()
     if bucket is None:
         raise AuthError("Bucket not found", code="not_found")
+    return bucket
+
+
+async def update_bucket(
+    db: AsyncSession,
+    *,
+    app_id: uuid.UUID,
+    bucket_id: uuid.UUID,
+    max_size_bytes: int | None = ...,
+    max_size_bytes_per_user: int | None = ...,
+) -> Bucket:
+    bucket = await get_bucket(db, app_id=app_id, bucket_id=bucket_id)
+    if max_size_bytes is not ...:
+        bucket.max_size_bytes = max_size_bytes
+    if max_size_bytes_per_user is not ...:
+        bucket.max_size_bytes_per_user = max_size_bytes_per_user
+    await db.flush()
+    await db.refresh(bucket)
     return bucket
 
 
@@ -138,8 +163,10 @@ async def put_object(
     # Check app-level storage limit
     await _check_object_storage(db, redis, app_id=app_id)
 
-    # Ensure bucket exists
-    await get_bucket(db, app_id=app_id, bucket_id=bucket_id)
+    # Ensure bucket exists and check bucket-level limits
+    bucket = await get_bucket(db, app_id=app_id, bucket_id=bucket_id)
+    await _check_bucket_storage(db, redis, bucket=bucket)
+    await _check_user_bucket_storage(db, redis, bucket=bucket, user_id=user_id)
 
     # Upload to S3
     s3_object_key = _s3_key(app_id, bucket_id, user_id, key)
@@ -178,6 +205,7 @@ async def put_object(
     await db.flush()
     await db.refresh(obj)
     await _invalidate_object_storage_cache(redis, app_id=app_id)
+    await _invalidate_bucket_storage_cache(redis, bucket_id=bucket_id, user_id=user_id)
     return obj
 
 
@@ -249,6 +277,7 @@ async def delete_object(
     await db.delete(obj)
     await db.flush()
     await _invalidate_object_storage_cache(redis, app_id=app_id)
+    await _invalidate_bucket_storage_cache(redis, bucket_id=bucket_id, user_id=user_id)
 
 
 async def list_objects(
@@ -328,6 +357,72 @@ async def _check_object_storage(
 async def _invalidate_object_storage_cache(redis, *, app_id: uuid.UUID) -> None:
     cache_key = f"object_storage:{app_id}"
     await redis.delete(cache_key)
+
+
+async def _check_bucket_storage(
+    db: AsyncSession,
+    redis,
+    *,
+    bucket: Bucket,
+) -> None:
+    if bucket.max_size_bytes is None:
+        return
+    cache_key = f"bucket_storage:{bucket.id}"
+    cached = await redis.get(cache_key)
+    if cached is not None:
+        used = int(cached)
+    else:
+        result = await db.execute(
+            select(func.coalesce(func.sum(StorageObject.size_bytes), 0)).where(
+                StorageObject.bucket_id == bucket.id
+            )
+        )
+        used = result.scalar() or 0
+        await redis.set(cache_key, str(used), ex=60)
+    if used >= bucket.max_size_bytes:
+        raise AuthError(
+            f"Bucket storage limit exceeded ({used} / {bucket.max_size_bytes} bytes)",
+            code="storage_limit_exceeded",
+        )
+
+
+async def _check_user_bucket_storage(
+    db: AsyncSession,
+    redis,
+    *,
+    bucket: Bucket,
+    user_id: uuid.UUID,
+) -> None:
+    if bucket.max_size_bytes_per_user is None:
+        return
+    cache_key = f"bucket_user_storage:{bucket.id}:{user_id}"
+    cached = await redis.get(cache_key)
+    if cached is not None:
+        used = int(cached)
+    else:
+        result = await db.execute(
+            select(func.coalesce(func.sum(StorageObject.size_bytes), 0)).where(
+                StorageObject.bucket_id == bucket.id,
+                StorageObject.user_id == user_id,
+            )
+        )
+        used = result.scalar() or 0
+        await redis.set(cache_key, str(used), ex=60)
+    if used >= bucket.max_size_bytes_per_user:
+        raise AuthError(
+            f"User storage limit exceeded ({used} / {bucket.max_size_bytes_per_user} bytes)",
+            code="storage_limit_exceeded",
+        )
+
+
+async def _invalidate_bucket_storage_cache(
+    redis,
+    *,
+    bucket_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> None:
+    await redis.delete(f"bucket_storage:{bucket_id}")
+    await redis.delete(f"bucket_user_storage:{bucket_id}:{user_id}")
 
 
 def _encode_cursor(value: str) -> str:

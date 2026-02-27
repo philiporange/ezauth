@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Custom Tables - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html" class="active">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Custom Tables</h1>
+  <p class="subtitle">Store app-specific structured data in ezAuth. Create typed tables, insert rows, and query with filtering and sorting.</p>
+
+  <h2>Overview</h2>
+  <p>Custom tables let you store structured data alongside your users without running a separate database. Each application can create tables with typed columns, and rows can optionally be scoped to individual users.</p>
+  <p>Use cases: user profiles, settings, contacts, form submissions, feature flags, app configuration.</p>
+
+  <h2>Concepts</h2>
+  <ul>
+    <li><strong>Table</strong> &mdash; a named collection of columns and rows, scoped to your application</li>
+    <li><strong>Column</strong> &mdash; a typed field definition (text, int, bool, float, date, json)</li>
+    <li><strong>Row</strong> &mdash; a JSON object containing data that matches the column definitions</li>
+    <li><strong>User-scoped rows</strong> &mdash; rows can optionally be tied to a specific user via <code>user_id</code></li>
+  </ul>
+
+  <h2>Column Types</h2>
+  <table>
+    <tr><th>Type</th><th>Description</th><th>Example</th></tr>
+    <tr><td><code>text</code></td><td>String value</td><td><code>"Alice"</code></td></tr>
+    <tr><td><code>int</code></td><td>Integer</td><td><code>30</code></td></tr>
+    <tr><td><code>float</code></td><td>Floating-point number</td><td><code>3.14</code></td></tr>
+    <tr><td><code>bool</code></td><td>Boolean</td><td><code>true</code></td></tr>
+    <tr><td><code>date</code></td><td>Date/datetime string</td><td><code>"2025-01-15"</code></td></tr>
+    <tr><td><code>json</code></td><td>Arbitrary JSON</td><td><code>{"key": "value"}</code></td></tr>
+  </table>
+
+  <h2>Create a Table</h2>
+  <pre><code><span class="kw">const</span> <span class="var">table</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="fn">create</span>({
+  <span class="prop">name</span>: <span class="str">'contacts'</span>,
+  <span class="prop">columns</span>: [
+    { <span class="prop">name</span>: <span class="str">'name'</span>, <span class="prop">type</span>: <span class="str">'text'</span>, <span class="prop">required</span>: <span class="kw">true</span> },
+    { <span class="prop">name</span>: <span class="str">'age'</span>, <span class="prop">type</span>: <span class="str">'int'</span> },
+    { <span class="prop">name</span>: <span class="str">'active'</span>, <span class="prop">type</span>: <span class="str">'bool'</span>, <span class="prop">defaultValue</span>: <span class="kw">true</span> },
+  ],
+})</code></pre>
+
+  <h2>Add / Update / Remove Columns</h2>
+  <pre><code><span class="cm">// Add a column to an existing table</span>
+<span class="kw">const</span> <span class="var">col</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">columns</span>.<span class="fn">add</span>(<span class="var">table</span>.<span class="prop">id</span>, {
+  <span class="prop">name</span>: <span class="str">'email'</span>,
+  <span class="prop">type</span>: <span class="str">'text'</span>,
+  <span class="prop">required</span>: <span class="kw">false</span>,
+  <span class="prop">position</span>: <span class="num">2</span>,
+})
+
+<span class="cm">// Update a column</span>
+<span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">columns</span>.<span class="fn">update</span>(<span class="var">table</span>.<span class="prop">id</span>, <span class="var">col</span>.<span class="prop">id</span>, {
+  <span class="prop">name</span>: <span class="str">'email_address'</span>,
+  <span class="prop">required</span>: <span class="kw">true</span>,
+})
+
+<span class="cm">// Delete a column</span>
+<span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">columns</span>.<span class="fn">delete</span>(<span class="var">table</span>.<span class="prop">id</span>, <span class="var">col</span>.<span class="prop">id</span>)</code></pre>
+
+  <h2>Insert Rows</h2>
+  <pre><code><span class="kw">const</span> <span class="var">row</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">rows</span>.<span class="fn">insert</span>(<span class="var">table</span>.<span class="prop">id</span>, {
+  <span class="prop">data</span>: { <span class="prop">name</span>: <span class="str">'Alice'</span>, <span class="prop">age</span>: <span class="num">30</span>, <span class="prop">active</span>: <span class="kw">true</span> },
+})
+<span class="cm">// row.id, row.data, row.created_at, row.updated_at</span></code></pre>
+
+  <h3>User-Scoped Rows</h3>
+  <p>Pass <code>user_id</code> to tie a row to a specific user. When authenticated users access the table, they only see their own rows.</p>
+  <pre><code><span class="cm">// Backend: insert a row for a specific user</span>
+<span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">rows</span>.<span class="fn">insert</span>(<span class="var">table</span>.<span class="prop">id</span>, {
+  <span class="prop">data</span>: { <span class="prop">name</span>: <span class="str">'Alice'</span> },
+  <span class="prop">userId</span>: <span class="str">'user-uuid'</span>,
+})</code></pre>
+
+  <h2>Query Rows</h2>
+  <p>Query rows with filtering, sorting, and cursor-based pagination:</p>
+  <pre><code><span class="kw">const</span> <span class="var">result</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">rows</span>.<span class="fn">query</span>(<span class="var">table</span>.<span class="prop">id</span>, {
+  <span class="prop">filter</span>: { <span class="prop">field</span>: <span class="str">'age'</span>, <span class="prop">op</span>: <span class="str">'gte'</span>, <span class="prop">value</span>: <span class="num">18</span> },
+  <span class="prop">sort</span>: { <span class="prop">field</span>: <span class="str">'name'</span>, <span class="prop">dir</span>: <span class="str">'asc'</span> },
+  <span class="prop">limit</span>: <span class="num">50</span>,
+})
+<span class="cm">// result.rows — array of row objects</span>
+<span class="cm">// result.next_cursor — pass to next query for pagination</span></code></pre>
+
+  <h3>Filter Operators</h3>
+  <table>
+    <tr><th>Operator</th><th>Description</th><th>Example</th></tr>
+    <tr><td><code>eq</code></td><td>Equal</td><td><code>{"field": "name", "op": "eq", "value": "Alice"}</code></td></tr>
+    <tr><td><code>neq</code></td><td>Not equal</td><td><code>{"field": "active", "op": "neq", "value": false}</code></td></tr>
+    <tr><td><code>gt</code></td><td>Greater than</td><td><code>{"field": "age", "op": "gt", "value": 21}</code></td></tr>
+    <tr><td><code>gte</code></td><td>Greater than or equal</td><td><code>{"field": "age", "op": "gte", "value": 18}</code></td></tr>
+    <tr><td><code>lt</code></td><td>Less than</td><td><code>{"field": "age", "op": "lt", "value": 65}</code></td></tr>
+    <tr><td><code>lte</code></td><td>Less than or equal</td><td><code>{"field": "age", "op": "lte", "value": 100}</code></td></tr>
+  </table>
+
+  <h3>Sort</h3>
+  <table>
+    <tr><th>Field</th><th>Description</th></tr>
+    <tr><td><code>field</code></td><td>Column name to sort by</td></tr>
+    <tr><td><code>dir</code></td><td><code>"asc"</code> or <code>"desc"</code></td></tr>
+  </table>
+
+  <h2>Update &amp; Delete Rows</h2>
+  <pre><code><span class="cm">// Partial update</span>
+<span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">rows</span>.<span class="fn">update</span>(<span class="var">table</span>.<span class="prop">id</span>, <span class="var">row</span>.<span class="prop">id</span>, {
+  <span class="prop">data</span>: { <span class="prop">age</span>: <span class="num">31</span> },
+})
+
+<span class="cm">// Delete</span>
+<span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">rows</span>.<span class="fn">delete</span>(<span class="var">table</span>.<span class="prop">id</span>, <span class="var">row</span>.<span class="prop">id</span>)</code></pre>
+
+  <h2>Storage Limits</h2>
+  <p>Custom tables have a configurable storage limit per application (default: 100 MB).</p>
+  <pre><code><span class="kw">const</span> <span class="var">usage</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">storage</span>.<span class="fn">get</span>()
+console.<span class="fn">log</span>(<span class="str">`${usage.used_bytes} / ${usage.limit_bytes} bytes`</span>)</code></pre>
+  <p>Configure via <code>CUSTOM_TABLES_STORAGE_LIMIT_BYTES</code> environment variable.</p>
+</main>
+</body>
+</html>

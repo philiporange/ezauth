@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+{% block title %}Storage Buckets - ezAuth{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>Storage Buckets</h2>
+</div>
+
+{% if app_id %}
+<form method="post" action="/dashboard/buckets" class="bucket-create-form">
+    <input type="hidden" name="app_id" value="{{ app_id }}">
+    <div class="form-row">
+        <div>
+            <label>Bucket Name</label>
+            <input type="text" name="name" placeholder="my-bucket" required pattern="^[a-zA-Z_][a-zA-Z0-9_\-]*$">
+        </div>
+        <div>
+            <label>Bucket Limit (bytes)</label>
+            <input type="number" name="max_size_bytes" placeholder="Unlimited" min="1">
+        </div>
+        <div>
+            <label>Per-User Limit (bytes)</label>
+            <input type="number" name="max_size_bytes_per_user" placeholder="Unlimited" min="1">
+        </div>
+        <div class="form-row-action">
+            <button type="submit">Create Bucket</button>
+        </div>
+    </div>
+</form>
+{% endif %}
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Usage</th>
+            <th>Bucket Limit</th>
+            <th>Per-User Limit</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for b in buckets %}
+        <tr>
+            <td><a href="/dashboard/buckets/{{ b.id }}">{{ b.name }}</a></td>
+            <td>{{ bucket_usage[b.id] | filesizeformat }}</td>
+            <td>
+                {% if b.max_size_bytes %}
+                {{ b.max_size_bytes | filesizeformat }}
+                {% else %}
+                <span class="badge bg-muted">Unlimited</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if b.max_size_bytes_per_user %}
+                {{ b.max_size_bytes_per_user | filesizeformat }}
+                {% else %}
+                <span class="badge bg-muted">Unlimited</span>
+                {% endif %}
+            </td>
+            <td>{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+        {% if not buckets %}
+        <tr>
+            <td colspan="5" style="text-align: center; color: #999; padding: 24px;">No buckets yet</td>
+        </tr>
+        {% endif %}
+    </tbody>
+</table>
+{% endblock %}

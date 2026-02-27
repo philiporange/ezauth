@@ -15,7 +15,7 @@ _DOCS_DIR = pathlib.Path(__file__).parent / "docs"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting EZAuth")
+    logger.info("Starting ezAuth")
     await init_redis()
     logger.info("Redis connected")
 
@@ -28,11 +28,11 @@ async def lifespan(app: FastAPI):
     yield
     await close_redis()
     await engine.dispose()
-    logger.info("EZAuth shut down")
+    logger.info("ezAuth shut down")
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="EZAuth", version="0.1.0", lifespan=lifespan, docs_url=None)
+    app = FastAPI(title="ezAuth", version="0.1.0", lifespan=lifespan, docs_url=None)
 
     # CORS: In production, allowed_origins should be set per-application.
     # Using allow_origins=[] with allow_origin_regex to reflect the Origin

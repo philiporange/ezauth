@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Configuration - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html" class="active">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Configuration</h1>
+  <p class="subtitle">All ezAuth configuration is done through environment variables. Set them in a <code>.env</code> file or your deployment environment.</p>
+
+  <h2>Database &amp; Cache</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>DATABASE_URL</code></td><td>&mdash;</td><td>PostgreSQL async connection string (e.g., <code>postgresql+asyncpg://user:pass@host:5432/ezauth</code>)</td></tr>
+    <tr><td><code>REDIS_URL</code></td><td><code>redis://localhost:6379/0</code></td><td>Redis connection URL</td></tr>
+  </table>
+
+  <h2>JWT &amp; Sessions</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>JWT_ALGORITHM</code></td><td><code>RS256</code></td><td>JWT signing algorithm</td></tr>
+    <tr><td><code>JWT_ACCESS_TOKEN_EXPIRE_MINUTES</code></td><td><code>15</code></td><td>Access token lifetime in minutes</td></tr>
+    <tr><td><code>JWT_REFRESH_TOKEN_EXPIRE_DAYS</code></td><td><code>30</code></td><td>Refresh token lifetime in days</td></tr>
+    <tr><td><code>SESSION_COOKIE_NAME</code></td><td><code>__session</code></td><td>Name of the session cookie</td></tr>
+    <tr><td><code>SESSION_COOKIE_DOMAIN</code></td><td><code>""</code></td><td>Cookie domain (empty = inferred from request)</td></tr>
+    <tr><td><code>SESSION_COOKIE_SECURE</code></td><td><code>true</code></td><td>Require HTTPS for cookies</td></tr>
+  </table>
+
+  <h2>Email (AWS SES)</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>SES_REGION</code></td><td><code>us-east-1</code></td><td>AWS SES region</td></tr>
+    <tr><td><code>SES_SENDER</code></td><td>&mdash;</td><td>Default sender email address</td></tr>
+    <tr><td><code>SES_SENDER_NAME</code></td><td><code>EZAuth</code></td><td>Default sender display name</td></tr>
+  </table>
+
+  <div class="callout callout-info">
+    <p>Per-application sender settings can be configured in the dashboard. The environment variables set the defaults for new applications.</p>
+  </div>
+
+  <h2>Rate Limiting</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>SIGNUP_RATE_LIMIT_IP</code></td><td><code>60:10</code></td><td>Max signups per IP (window_seconds:max_count)</td></tr>
+    <tr><td><code>SIGNUP_RATE_LIMIT_EMAIL</code></td><td><code>300:1</code></td><td>Max signups per email (window_seconds:max_count)</td></tr>
+    <tr><td><code>SIGNIN_RATE_LIMIT_IP</code></td><td><code>60:10</code></td><td>Max sign-ins per IP</td></tr>
+  </table>
+
+  <h2>Hashcash (Proof-of-Work)</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>HASHCASH_ENABLED</code></td><td><code>true</code></td><td>Require proof-of-work for signups</td></tr>
+    <tr><td><code>HASHCASH_DIFFICULTY</code></td><td><code>5</code></td><td>Number of leading zero bits required</td></tr>
+    <tr><td><code>HASHCASH_CHALLENGE_TTL</code></td><td><code>300</code></td><td>Challenge expiry in seconds</td></tr>
+    <tr><td><code>HASHCASH_TIME_COST</code></td><td><code>2</code></td><td>Argon2 time parameter</td></tr>
+    <tr><td><code>HASHCASH_MEMORY_COST</code></td><td><code>19456</code></td><td>Argon2 memory parameter (KiB)</td></tr>
+  </table>
+
+  <h2>Verification</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>VERIFICATION_TOKEN_EXPIRE_MINUTES</code></td><td><code>60</code></td><td>Email verification link/code TTL</td></tr>
+    <tr><td><code>MAGIC_LINK_EXPIRE_MINUTES</code></td><td><code>15</code></td><td>Magic link TTL</td></tr>
+  </table>
+
+  <h2>Bot Authentication</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>CONFIRMATIONS_API_URL</code></td><td><code>https://api.confirmations.info</code></td><td>Bot challenge verification API</td></tr>
+    <tr><td><code>BOT_AUTH_TIMESTAMP_TOLERANCE</code></td><td><code>300</code></td><td>Max age of bot auth signature (seconds)</td></tr>
+  </table>
+
+  <h2>OAuth</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>OAUTH_STATE_TTL_SECONDS</code></td><td><code>600</code></td><td>OAuth CSRF state TTL</td></tr>
+  </table>
+
+  <h2>Object Storage (S3)</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>S3_ENDPOINT_URL</code></td><td><code>""</code></td><td>S3-compatible endpoint URL</td></tr>
+    <tr><td><code>S3_ACCESS_KEY_ID</code></td><td><code>""</code></td><td>S3 access key</td></tr>
+    <tr><td><code>S3_SECRET_ACCESS_KEY</code></td><td><code>""</code></td><td>S3 secret key</td></tr>
+    <tr><td><code>S3_BUCKET_NAME</code></td><td><code>""</code></td><td>S3 bucket name</td></tr>
+    <tr><td><code>S3_REGION</code></td><td><code>us-east-1</code></td><td>S3 region</td></tr>
+    <tr><td><code>OBJECT_STORAGE_MAX_OBJECT_BYTES</code></td><td><code>52428800</code></td><td>Max single object size (50 MB)</td></tr>
+    <tr><td><code>OBJECT_STORAGE_LIMIT_BYTES</code></td><td><code>1073741824</code></td><td>Total storage per app (1 GB)</td></tr>
+  </table>
+
+  <h2>Custom Tables</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>CUSTOM_TABLES_STORAGE_LIMIT_BYTES</code></td><td><code>104857600</code></td><td>Max table storage per app (100 MB)</td></tr>
+  </table>
+
+  <h2>Dashboard</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>DASHBOARD_SECRET_KEY</code></td><td>&mdash;</td><td>Password for the admin dashboard</td></tr>
+  </table>
+</main>
+</body>
+</html>

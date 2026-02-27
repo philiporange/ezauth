@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JavaScript SDK - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html" class="active">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>JavaScript SDK</h1>
+  <p class="subtitle">Universal JavaScript client for ezAuth. Zero dependencies. Works in Node.js 18+ and all modern browsers.</p>
+
+  <h2>Installation</h2>
+  <pre><code>npm install @ezauth/client</code></pre>
+  <p>Available as ESM, CJS, and IIFE (browser global) builds:</p>
+  <ul>
+    <li><code>dist/ezauth.esm.js</code> &mdash; ES modules (<code>import</code>)</li>
+    <li><code>dist/ezauth.cjs</code> &mdash; CommonJS (<code>require</code>)</li>
+    <li><code>dist/ezauth.iife.js</code> &mdash; Browser global (<code>window.EZAuth</code>)</li>
+  </ul>
+
+  <h2>Initialization</h2>
+  <pre><code><span class="kw">import</span> { <span class="type">EZAuth</span> } <span class="kw">from</span> <span class="str">'@ezauth/client'</span>
+
+<span class="cm">// Frontend (publishable key)</span>
+<span class="kw">const</span> <span class="var">ez</span> = <span class="kw">new</span> <span class="type">EZAuth</span>({
+  <span class="prop">baseUrl</span>: <span class="str">'https://auth.example.com'</span>,
+  <span class="prop">publishableKey</span>: <span class="str">'pk_live_...'</span>,
+})
+
+<span class="cm">// Backend (secret key)</span>
+<span class="kw">const</span> <span class="var">ez</span> = <span class="kw">new</span> <span class="type">EZAuth</span>({
+  <span class="prop">baseUrl</span>: <span class="str">'https://auth.example.com'</span>,
+  <span class="prop">secretKey</span>: <span class="str">'sk_live_...'</span>,
+})</code></pre>
+
+  <h2>Error Handling</h2>
+  <p>All methods throw <code>EZAuthError</code> on failure:</p>
+  <pre><code><span class="kw">import</span> { <span class="type">EZAuth</span>, <span class="type">EZAuthError</span> } <span class="kw">from</span> <span class="str">'@ezauth/client'</span>
+
+<span class="kw">try</span> {
+  <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">users</span>.<span class="fn">get</span>(<span class="str">'nonexistent'</span>)
+} <span class="kw">catch</span> (<span class="var">err</span>) {
+  <span class="kw">if</span> (<span class="var">err</span> <span class="kw">instanceof</span> <span class="type">EZAuthError</span>) {
+    console.<span class="fn">log</span>(<span class="var">err</span>.<span class="prop">message</span>)  <span class="cm">// "User not found"</span>
+    console.<span class="fn">log</span>(<span class="var">err</span>.<span class="prop">status</span>)   <span class="cm">// 404</span>
+  }
+}</code></pre>
+
+  <hr>
+
+  <h2>ez.auth (Publishable Key)</h2>
+  <p>Frontend authentication operations.</p>
+
+  <h3>signUp(options)</h3>
+  <p>Create a new user account. Sends a verification email.</p>
+  <pre><code><span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signUp</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">password</span>: <span class="str">'s3cret'</span>,          <span class="cm">// optional</span>
+  <span class="prop">redirectUrl</span>: <span class="str">'https://...'</span>,  <span class="cm">// optional, for magic link redirect</span>
+})</code></pre>
+
+  <h3>signIn(options)</h3>
+  <p>Sign in a user. Strategy is auto-detected from the presence of <code>password</code>.</p>
+  <pre><code><span class="cm">// Password sign-in (returns session immediately)</span>
+<span class="kw">const</span> <span class="var">session</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signIn</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">password</span>: <span class="str">'s3cret'</span>,
+})
+
+<span class="cm">// Magic link (sends email, no immediate session)</span>
+<span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signIn</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">redirectUrl</span>: <span class="str">'https://myapp.com/dashboard'</span>,
+})</code></pre>
+
+  <h3>verifyCode(options)</h3>
+  <p>Verify a 6-digit code from email. Returns a session.</p>
+  <pre><code><span class="kw">const</span> <span class="var">session</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">verifyCode</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">code</span>: <span class="str">'482917'</span>,
+})
+<span class="cm">// session.access_token, session.refresh_token, session.user_id, session.session_id</span></code></pre>
+
+  <h3>getSession()</h3>
+  <p>Get the current authenticated user's information.</p>
+  <pre><code><span class="kw">const</span> <span class="var">me</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">getSession</span>()
+<span class="cm">// { user_id, email, email_verified, is_bot }</span></code></pre>
+
+  <h3>signOut()</h3>
+  <p>Sign out the current session.</p>
+  <pre><code><span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signOut</span>()</code></pre>
+
+  <h3>refreshToken(refreshToken)</h3>
+  <p>Exchange a refresh token for a new access/refresh token pair.</p>
+  <pre><code><span class="kw">const</span> <span class="var">newSession</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">refreshToken</span>(<span class="str">'rt_...'</span>)</code></pre>
+
+  <h3>ssoExchange(token)</h3>
+  <p>Exchange an SSO token for a session (for cross-domain SSO).</p>
+  <pre><code><span class="kw">const</span> <span class="var">session</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">ssoExchange</span>(<span class="var">ssoToken</span>)</code></pre>
+
+  <h3>signInWithOAuth(options)</h3>
+  <p>Get an OAuth authorization URL to redirect the user.</p>
+  <pre><code><span class="kw">const</span> { <span class="var">authorization_url</span> } = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signInWithOAuth</span>({
+  <span class="prop">provider</span>: <span class="str">'google'</span>,
+  <span class="prop">redirectUrl</span>: <span class="str">'https://myapp.com/dashboard'</span>,
+})
+window.location.href = <span class="var">authorization_url</span></code></pre>
+
+  <h3>requestChallenge()</h3>
+  <p>Request a hashcash proof-of-work challenge (for signup when hashcash is enabled).</p>
+  <pre><code><span class="kw">const</span> <span class="var">challenge</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">requestChallenge</span>()
+<span class="cm">// { challenge, difficulty, algorithm, params, expires_in }</span></code></pre>
+
+  <hr>
+
+  <h2>ez.users (Secret Key)</h2>
+  <p>Backend user management.</p>
+
+  <h3>users.list(options?)</h3>
+  <pre><code><span class="kw">const</span> { <span class="var">users</span>, <span class="var">total</span> } = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">users</span>.<span class="fn">list</span>({
+  <span class="prop">limit</span>: <span class="num">10</span>,    <span class="cm">// default: 50</span>
+  <span class="prop">offset</span>: <span class="num">0</span>,
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,  <span class="cm">// optional filter</span>
+})</code></pre>
+
+  <h3>users.create(options)</h3>
+  <pre><code><span class="kw">const</span> <span class="var">user</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">users</span>.<span class="fn">create</span>({
+  <span class="prop">email</span>: <span class="str">'bob@example.com'</span>,
+  <span class="prop">password</span>: <span class="str">'optional'</span>,
+})</code></pre>
+
+  <h3>users.get(userId)</h3>
+  <pre><code><span class="kw">const</span> <span class="var">user</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">users</span>.<span class="fn">get</span>(<span class="str">'user-uuid'</span>)</code></pre>
+
+  <hr>
+
+  <h2>ez.sessions (Secret Key)</h2>
+
+  <h3>sessions.revoke(sessionId)</h3>
+  <pre><code><span class="kw">await</span> <span class="var">ez</span>.<span class="prop">sessions</span>.<span class="fn">revoke</span>(<span class="str">'session-uuid'</span>)</code></pre>
+
+  <h3>sessions.createSignInToken(options)</h3>
+  <pre><code><span class="kw">const</span> <span class="var">result</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">sessions</span>.<span class="fn">createSignInToken</span>({
+  <span class="prop">userId</span>: <span class="str">'user-uuid'</span>,
+  <span class="prop">expiresInSeconds</span>: <span class="num">300</span>,  <span class="cm">// default: 300</span>
+})
+<span class="cm">// result.token, result.refresh_token, result.expires_at</span></code></pre>
+
+  <hr>
+
+  <h2>ez.tables (Secret Key)</h2>
+  <p>Custom table management. See <a href="custom-tables.html">Custom Tables</a> for concepts.</p>
+
+  <h3>tables.create(options)</h3>
+  <pre><code><span class="kw">const</span> <span class="var">table</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="fn">create</span>({
+  <span class="prop">name</span>: <span class="str">'contacts'</span>,
+  <span class="prop">columns</span>: [
+    { <span class="prop">name</span>: <span class="str">'name'</span>, <span class="prop">type</span>: <span class="str">'text'</span>, <span class="prop">required</span>: <span class="kw">true</span> },
+    { <span class="prop">name</span>: <span class="str">'age'</span>, <span class="prop">type</span>: <span class="str">'int'</span> },
+  ],
+})</code></pre>
+
+  <h3>tables.list()</h3>
+  <pre><code><span class="kw">const</span> { <span class="var">tables</span>, <span class="var">total</span> } = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="fn">list</span>()</code></pre>
+
+  <h3>tables.get(tableId)</h3>
+  <pre><code><span class="kw">const</span> <span class="var">table</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="fn">get</span>(<span class="str">'table-uuid'</span>)
+<span class="cm">// table.columns — array of column definitions</span></code></pre>
+
+  <h3>tables.delete(tableId)</h3>
+  <pre><code><span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="fn">delete</span>(<span class="str">'table-uuid'</span>)</code></pre>
+
+  <h3>tables.columns.add(tableId, options)</h3>
+  <pre><code><span class="kw">const</span> <span class="var">col</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">columns</span>.<span class="fn">add</span>(<span class="str">'table-uuid'</span>, {
+  <span class="prop">name</span>: <span class="str">'email'</span>,
+  <span class="prop">type</span>: <span class="str">'text'</span>,
+  <span class="prop">required</span>: <span class="kw">true</span>,
+})</code></pre>
+
+  <h3>tables.columns.update(tableId, columnId, options)</h3>
+  <pre><code><span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">columns</span>.<span class="fn">update</span>(<span class="str">'table-uuid'</span>, <span class="str">'col-uuid'</span>, {
+  <span class="prop">name</span>: <span class="str">'full_name'</span>,
+})</code></pre>
+
+  <h3>tables.columns.delete(tableId, columnId)</h3>
+  <pre><code><span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">columns</span>.<span class="fn">delete</span>(<span class="str">'table-uuid'</span>, <span class="str">'col-uuid'</span>)</code></pre>
+
+  <h3>tables.rows.insert(tableId, options)</h3>
+  <pre><code><span class="kw">const</span> <span class="var">row</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">rows</span>.<span class="fn">insert</span>(<span class="str">'table-uuid'</span>, {
+  <span class="prop">data</span>: { <span class="prop">name</span>: <span class="str">'Alice'</span>, <span class="prop">age</span>: <span class="num">30</span> },
+})</code></pre>
+
+  <h3>tables.rows.get(tableId, rowId)</h3>
+  <pre><code><span class="kw">const</span> <span class="var">row</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">rows</span>.<span class="fn">get</span>(<span class="str">'table-uuid'</span>, <span class="str">'row-uuid'</span>)</code></pre>
+
+  <h3>tables.rows.update(tableId, rowId, options)</h3>
+  <pre><code><span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">rows</span>.<span class="fn">update</span>(<span class="str">'table-uuid'</span>, <span class="str">'row-uuid'</span>, {
+  <span class="prop">data</span>: { <span class="prop">age</span>: <span class="num">31</span> },
+})</code></pre>
+
+  <h3>tables.rows.delete(tableId, rowId)</h3>
+  <pre><code><span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">rows</span>.<span class="fn">delete</span>(<span class="str">'table-uuid'</span>, <span class="str">'row-uuid'</span>)</code></pre>
+
+  <h3>tables.rows.query(tableId, options?)</h3>
+  <pre><code><span class="kw">const</span> { <span class="var">rows</span>, <span class="var">next_cursor</span> } = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">tables</span>.<span class="prop">rows</span>.<span class="fn">query</span>(<span class="str">'table-uuid'</span>, {
+  <span class="prop">filter</span>: { <span class="prop">field</span>: <span class="str">'age'</span>, <span class="prop">op</span>: <span class="str">'gte'</span>, <span class="prop">value</span>: <span class="num">18</span> },
+  <span class="prop">sort</span>: { <span class="prop">field</span>: <span class="str">'name'</span>, <span class="prop">dir</span>: <span class="str">'asc'</span> },
+  <span class="prop">limit</span>: <span class="num">50</span>,
+  <span class="prop">cursor</span>: <span class="kw">null</span>,
+})</code></pre>
+
+  <hr>
+
+  <h2>ez.storage (Secret Key)</h2>
+
+  <h3>storage.get()</h3>
+  <pre><code><span class="kw">const</span> <span class="var">usage</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">storage</span>.<span class="fn">get</span>()
+<span class="cm">// { used_bytes, limit_bytes, used_percent }</span></code></pre>
+</main>
+</body>
+</html>

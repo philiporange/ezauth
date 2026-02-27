@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CLI - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html" class="active">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>CLI</h1>
+  <p class="subtitle">Command-line tool for interacting with ezAuth. Supports authentication, user management, custom tables, and more.</p>
+
+  <h2>Installation</h2>
+  <pre><code><span class="kw">cd</span> cli
+pip install -e .</code></pre>
+
+  <h2>Configuration</h2>
+  <pre><code>ezauth configure</code></pre>
+  <p>Prompts for:</p>
+  <ul>
+    <li><strong>Server URL</strong> &mdash; your EZAuth instance URL</li>
+    <li><strong>Publishable key</strong> &mdash; for frontend auth operations</li>
+    <li><strong>Secret key</strong> &mdash; for admin operations (optional)</li>
+  </ul>
+  <p>Configuration is stored in <code>~/.config/ezauth/config.json</code>.</p>
+
+  <h2>Authentication Commands</h2>
+
+  <h3>ezauth signup</h3>
+  <p>Register a new account. Automatically solves the hashcash challenge, then prompts for a verification code.</p>
+  <pre><code>$ ezauth signup
+Email: alice@example.com
+Password (optional, press Enter to skip): ****
+Requesting challenge...
+Proof of work solved in 3 attempts.
+verification_sent — check your email for a verification code.
+Verification code: 482917
+Signed up and logged in as alice@example.com</code></pre>
+
+  <h3>ezauth login</h3>
+  <p>Sign in to an existing account. Supports both password and magic link strategies.</p>
+  <pre><code>$ ezauth login
+Email: alice@example.com
+Strategy (password, magic_link) [magic_link]: password
+Password: ****
+Logged in as alice@example.com</code></pre>
+
+  <h3>ezauth whoami</h3>
+  <p>Show the current user's information. Automatically refreshes expired tokens.</p>
+  <pre><code>$ ezauth whoami
+user_id:        a1b2c3d4-...
+email:          alice@example.com
+email_verified: true
+is_bot:         false</code></pre>
+
+  <h3>ezauth logout</h3>
+  <p>Sign out and clear local credentials.</p>
+  <pre><code>$ ezauth logout
+Logged out.</code></pre>
+
+  <h2>Admin Commands</h2>
+  <p>These commands require a secret key to be configured.</p>
+
+  <h3>Users</h3>
+  <pre><code><span class="cm"># List users</span>
+ezauth users list
+ezauth users list --limit 10 --email alice@example.com
+
+<span class="cm"># Create a user</span>
+ezauth users create --email bob@example.com --password s3cret
+
+<span class="cm"># Get a user by ID</span>
+ezauth users get &lt;user-id&gt;</code></pre>
+
+  <h3>Sessions</h3>
+  <pre><code><span class="cm"># Revoke a session</span>
+ezauth sessions revoke &lt;session-id&gt;
+
+<span class="cm"># Create a sign-in token</span>
+ezauth sessions create-token --user-id &lt;user-id&gt; --expires 300</code></pre>
+
+  <h3>Tables</h3>
+  <pre><code><span class="cm"># Create a table with columns</span>
+ezauth tables create --name contacts --column name:text --column age:int
+
+<span class="cm"># List tables</span>
+ezauth tables list
+
+<span class="cm"># Get table details</span>
+ezauth tables get &lt;table-id&gt;
+
+<span class="cm"># Delete a table</span>
+ezauth tables delete &lt;table-id&gt;</code></pre>
+
+  <h3>Columns</h3>
+  <pre><code><span class="cm"># Add a column</span>
+ezauth columns add &lt;table-id&gt; --name email --type text --required
+
+<span class="cm"># Update a column</span>
+ezauth columns update &lt;table-id&gt; &lt;column-id&gt; --name full_name
+
+<span class="cm"># Delete a column</span>
+ezauth columns delete &lt;table-id&gt; &lt;column-id&gt;</code></pre>
+
+  <h3>Rows</h3>
+  <pre><code><span class="cm"># Insert a row</span>
+ezauth rows insert &lt;table-id&gt; --data '{"name": "Alice", "age": 30}'
+
+<span class="cm"># Get a row</span>
+ezauth rows get &lt;table-id&gt; &lt;row-id&gt;
+
+<span class="cm"># Update a row</span>
+ezauth rows update &lt;table-id&gt; &lt;row-id&gt; --data '{"age": 31}'
+
+<span class="cm"># Delete a row</span>
+ezauth rows delete &lt;table-id&gt; &lt;row-id&gt;
+
+<span class="cm"># Query rows</span>
+ezauth rows query &lt;table-id&gt; \
+  --filter '{"field": "age", "op": "gte", "value": 18}' \
+  --sort name:asc \
+  --limit 50</code></pre>
+
+  <h3>Storage</h3>
+  <pre><code><span class="cm"># Show storage usage</span>
+ezauth storage</code></pre>
+
+  <h2>JSON Output</h2>
+  <p>Add <code>--json</code> to any command to get raw JSON output:</p>
+  <pre><code>ezauth --json users list
+ezauth --json whoami</code></pre>
+</main>
+</body>
+</html>

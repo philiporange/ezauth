@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from ezauth.dashboard import auth, tenants, applications, domains, users, email_templates
+from ezauth.dashboard import auth, tenants, applications, domains, users, email_templates, buckets
 
 dashboard_router = APIRouter(prefix="/dashboard")
 
@@ -10,3 +10,4 @@ dashboard_router.include_router(applications.router, prefix="/applications", tag
 dashboard_router.include_router(domains.router, prefix="/domains", tags=["dashboard-domains"])
 dashboard_router.include_router(users.router, prefix="/users", tags=["dashboard-users"])
 dashboard_router.include_router(email_templates.router, prefix="/email-templates", tags=["dashboard-email"])
+dashboard_router.include_router(buckets.router, prefix="/buckets", tags=["dashboard-buckets"])

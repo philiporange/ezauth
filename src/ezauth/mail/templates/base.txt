@@ -2,4 +2,4 @@
 
 --
 Sent by {{{ app_name }}}
-Powered by EZAuth (https://ezauth.org)
+Powered by ezAuth (https://ezauth.org)

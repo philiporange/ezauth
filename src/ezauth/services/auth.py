@@ -106,7 +106,7 @@ async def signup(
         )
 
     mail_svc = mail.MailService(
-        sender_name=app.email_from_name,
+        sender_name=app.email_from_name or app.name,
         sender_address=app.email_from_address,
     )
 
@@ -313,7 +313,7 @@ async def signin_magic_link(
         )
 
     mail_svc = mail.MailService(
-        sender_name=app.email_from_name,
+        sender_name=app.email_from_name or app.name,
         sender_address=app.email_from_address,
     )
 

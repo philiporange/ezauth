@@ -70,13 +70,13 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
             metadata={"code": code},
         )
         mail = MailService(
-            sender_name=app.email_from_name,
+            sender_name=app.email_from_name or app.name,
             sender_address=app.email_from_address,
         )
         await mail.send_template(
             "admin_login_code",
             email,
-            "Your EZAuth Dashboard Code",
+            "Your ezAuth Dashboard Code",
             {"confirmation_code": code, "app_name": app.name, "name": "Admin"},
         )
 

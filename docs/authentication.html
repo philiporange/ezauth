@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Authentication Flows - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html" class="active">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Authentication Flows</h1>
+  <p class="subtitle">ezAuth supports multiple authentication methods. All flows use the publishable key and produce JWT access tokens + refresh tokens.</p>
+
+  <h2>How Sessions Work</h2>
+  <p>Every successful authentication creates a <strong>session</strong> consisting of:</p>
+  <ul>
+    <li><strong>Access token</strong> &mdash; an RS256 JWT valid for 15 minutes (configurable). Contains <code>sub</code> (user ID), <code>sid</code> (session ID), and <code>app_id</code>.</li>
+    <li><strong>Refresh token</strong> &mdash; a long-lived opaque token valid for 30 days (configurable). Used to get a new access token after expiry.</li>
+  </ul>
+  <p>Access tokens are delivered as an <code>__session</code> HttpOnly cookie (browser flows) or in the JSON response body (API flows). Refresh tokens are always in the response body.</p>
+
+  <div class="callout callout-info">
+    <p class="callout-title">JWT Verification</p>
+    <p>Access tokens can be verified offline using the public JWKS endpoint at <code>/.well-known/jwks.json</code>. See the <a href="server-sdk.html">Python Server SDK</a> for an easy integration.</p>
+  </div>
+
+  <h2>Email + Password</h2>
+  <p>The most common flow. Users sign up with email and password, verify their email, then sign in directly.</p>
+
+  <h3>Sign Up</h3>
+  <ol>
+    <li>Client sends <code>POST /v1/signups</code> with <code>email</code>, <code>password</code>, and optional <code>redirect_url</code></li>
+    <li>Server creates the user and sends a verification email (6-digit code or magic link, based on app config)</li>
+    <li>User provides the code via <code>POST /v1/verify-code</code> or clicks the magic link</li>
+    <li>Server returns <code>access_token</code> + <code>refresh_token</code></li>
+  </ol>
+
+  <h3>Sign In</h3>
+  <pre><code><span class="cm">// Password sign-in (returns tokens immediately)</span>
+<span class="kw">const</span> <span class="var">session</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signIn</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">password</span>: <span class="str">'s3cret'</span>,
+})
+<span class="cm">// session.access_token, session.refresh_token</span></code></pre>
+
+  <p>Set <code>strategy: "password"</code> explicitly or provide a <code>password</code> field (the SDK auto-detects).</p>
+
+  <h2>Magic Link</h2>
+  <p>Passwordless authentication via email. No password needed at sign up or sign in.</p>
+
+  <h3>Flow</h3>
+  <ol>
+    <li>Client sends <code>POST /v1/signins</code> with <code>email</code> and <code>redirect_url</code> (strategy defaults to <code>magic_link</code>)</li>
+    <li>Server sends an email with a one-time link</li>
+    <li>User clicks the link, which hits <code>GET /v1/email/verify?token=...</code></li>
+    <li>Server verifies the token, creates a session, sets the <code>__session</code> cookie, and redirects to <code>redirect_url</code></li>
+  </ol>
+
+  <pre><code><span class="cm">// Request magic link</span>
+<span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signIn</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">redirectUrl</span>: <span class="str">'https://myapp.com/dashboard'</span>,
+})</code></pre>
+
+  <h2>6-Digit Verification Code</h2>
+  <p>An alternative to magic links for non-browser flows (mobile apps, CLIs). After signup or magic link sign-in, the server sends a 6-digit code instead of (or in addition to) a link.</p>
+
+  <pre><code><span class="cm">// After signup or magic link request, verify the code</span>
+<span class="kw">const</span> <span class="var">session</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">verifyCode</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">code</span>: <span class="str">'482917'</span>,
+})</code></pre>
+
+  <p>The app's <code>verification_method</code> setting controls whether <code>code</code> or <code>link</code> is sent.</p>
+
+  <h2>Token Refresh</h2>
+  <p>When an access token expires (401 response), exchange the refresh token for a new pair:</p>
+
+  <pre><code><span class="kw">const</span> <span class="var">newSession</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">refreshToken</span>(<span class="var">oldRefreshToken</span>)
+<span class="cm">// newSession.access_token (fresh JWT)</span>
+<span class="cm">// newSession.refresh_token (rotated — store this one)</span></code></pre>
+
+  <div class="callout callout-warning">
+    <p class="callout-title">Token Rotation</p>
+    <p>Each refresh issues a new refresh token and invalidates the old one. Always store the latest refresh token.</p>
+  </div>
+
+  <h2>Sign Out</h2>
+  <p>Revokes the current session server-side and clears the session cookie:</p>
+  <pre><code><span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signOut</span>()</code></pre>
+
+  <h2>Get Current User</h2>
+  <p>Returns the authenticated user's information:</p>
+  <pre><code><span class="kw">const</span> <span class="var">me</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">getSession</span>()
+<span class="cm">// { user_id, email, email_verified, is_bot }</span></code></pre>
+  <p>Works with the <code>__session</code> cookie (browser) or an <code>Authorization: Bearer &lt;jwt&gt;</code> header.</p>
+
+  <h2>Hashcash (Proof-of-Work)</h2>
+  <p>When <code>HASHCASH_ENABLED=true</code> (default), sign-ups require a proof-of-work solution to deter bots and spam.</p>
+
+  <h3>Flow</h3>
+  <ol>
+    <li>Client requests a challenge: <code>POST /v1/challenges</code></li>
+    <li>Server returns a challenge string, difficulty, and Argon2 parameters</li>
+    <li>Client finds a nonce such that <code>argon2id(challenge + nonce)</code> has the required number of leading zero bits</li>
+    <li>Client includes the proof in the signup request</li>
+  </ol>
+
+  <pre><code><span class="cm">// The SDK handles this automatically in some clients (e.g. CLI)</span>
+<span class="cm">// For manual use:</span>
+<span class="kw">const</span> <span class="var">challenge</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">requestChallenge</span>()
+<span class="cm">// Solve the challenge client-side, then:</span>
+<span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signUp</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">hashcash</span>: { <span class="prop">challenge</span>: <span class="var">challenge</span>.<span class="prop">challenge</span>, <span class="prop">nonce</span>: <span class="var">solvedNonce</span> },
+})</code></pre>
+
+  <p>Typical client-side solving takes 1-3 seconds. The server verifies with a single hash (instant).</p>
+
+  <h2>Server-Side User Creation</h2>
+  <p>With the secret key, you can create users directly without email verification:</p>
+  <pre><code><span class="cm">// Backend only (secret key)</span>
+<span class="kw">const</span> <span class="var">user</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">users</span>.<span class="fn">create</span>({
+  <span class="prop">email</span>: <span class="str">'bob@example.com'</span>,
+  <span class="prop">password</span>: <span class="str">'optional-password'</span>,
+})</code></pre>
+
+  <h2>Sign-In Tokens (Server-to-Server)</h2>
+  <p>Create short-lived tokens on behalf of a user for server-to-server auth flows:</p>
+  <pre><code><span class="kw">const</span> <span class="var">result</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">sessions</span>.<span class="fn">createSignInToken</span>({
+  <span class="prop">userId</span>: <span class="str">'user-uuid'</span>,
+  <span class="prop">expiresInSeconds</span>: <span class="num">300</span>,  <span class="cm">// 5 minutes (default)</span>
+})
+<span class="cm">// result.token (JWT), result.refresh_token, result.expires_at</span></code></pre>
+
+  <h2>Rate Limiting</h2>
+  <p>All auth endpoints are rate limited per IP and per email:</p>
+  <table>
+    <tr><th>Endpoint</th><th>Per IP</th><th>Per Email</th></tr>
+    <tr><td>Sign Up</td><td>10 per minute</td><td>1 per 5 minutes</td></tr>
+    <tr><td>Sign In</td><td>10 per minute</td><td>&mdash;</td></tr>
+  </table>
+  <p>Rate limits are configurable via environment variables. When exceeded, the API returns <code>429 Too Many Requests</code>.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ezAuth Documentation</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html" class="active">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>ezAuth Documentation</h1>
+  <p class="subtitle">A multi-tenant authentication platform with email/password, magic links, OAuth, bot auth, custom data tables, and S3 object storage.</p>
+
+  <h2>What is ezAuth?</h2>
+  <p>ezAuth is a self-hosted authentication and user management service built with FastAPI and PostgreSQL. It provides everything you need to add auth to your applications:</p>
+  <ul>
+    <li><strong>Multiple auth methods</strong> &mdash; email/password, magic links, 6-digit codes, Google &amp; Apple OAuth, bot authentication (Ed25519)</li>
+    <li><strong>Multi-tenant</strong> &mdash; one instance serves many applications, each with their own users, keys, and config</li>
+    <li><strong>RS256 JWTs</strong> &mdash; per-app RSA key pairs with a public JWKS endpoint for offline verification</li>
+    <li><strong>Session management</strong> &mdash; short-lived access tokens (15 min) + long-lived refresh tokens (30 days) with rotation</li>
+    <li><strong>Cross-domain SSO</strong> &mdash; share sessions across apps in the same tenant via secure token exchange</li>
+    <li><strong>Custom data tables</strong> &mdash; create typed, user-scoped database tables via the API</li>
+    <li><strong>Object storage</strong> &mdash; user-scoped file uploads via S3-compatible backends</li>
+    <li><strong>Anti-abuse</strong> &mdash; hashcash proof-of-work, rate limiting per IP and email</li>
+    <li><strong>Admin dashboard</strong> &mdash; manage tenants, apps, users, domains, and OAuth providers</li>
+  </ul>
+
+  <h2>Architecture</h2>
+  <p>ezAuth follows a multi-tenant architecture with two levels of hierarchy:</p>
+  <ul>
+    <li><strong>Tenant</strong> &mdash; a top-level organization</li>
+    <li><strong>Application</strong> &mdash; belongs to a tenant. Each app has its own users, sessions, keys, and configuration. Use separate apps for dev/staging/production environments.</li>
+  </ul>
+  <p>Each application gets two API keys:</p>
+  <ul>
+    <li><strong>Publishable key</strong> (<code>pk_...</code>) &mdash; safe to embed in frontend code. Used for sign up, sign in, and user-facing operations.</li>
+    <li><strong>Secret key</strong> (<code>sk_...</code>) &mdash; used server-side for admin operations like creating users, revoking sessions, and managing tables.</li>
+  </ul>
+
+  <h2>SDK Libraries</h2>
+  <div class="card-grid">
+    <a href="sdk-javascript.html" class="card">
+      <h3>JavaScript</h3>
+      <p>Zero-dep client for Node.js 18+ and all modern browsers. ESM, CJS, and IIFE builds.</p>
+    </a>
+    <a href="sdk-python.html" class="card">
+      <h3>Python</h3>
+      <p>Sync client built on httpx. Python 3.11+. Frontend auth &amp; backend admin.</p>
+    </a>
+    <a href="sdk-swift.html" class="card">
+      <h3>Swift</h3>
+      <p>Zero-dep async/await client using Foundation URLSession. iOS 15+, macOS 12+.</p>
+    </a>
+    <a href="sdk-kotlin.html" class="card">
+      <h3>Kotlin</h3>
+      <p>OkHttp + kotlinx.serialization + coroutines. JVM 17+ and Android.</p>
+    </a>
+    <a href="server-sdk.html" class="card">
+      <h3>Python Server SDK</h3>
+      <p>FastAPI/Starlette middleware for verifying ezAuth JWTs in your backend.</p>
+    </a>
+    <a href="cli.html" class="card">
+      <h3>CLI</h3>
+      <p>Command-line tool for sign up, login, and full admin management.</p>
+    </a>
+  </div>
+
+  <h2>Security Features</h2>
+  <table>
+    <tr><th>Feature</th><th>Details</th></tr>
+    <tr><td>JWT signing</td><td>RS256 with per-app RSA key pairs</td></tr>
+    <tr><td>Password hashing</td><td>Argon2id with automatic rehashing on parameter changes</td></tr>
+    <tr><td>Token storage</td><td>All tokens (refresh, verification, magic link) stored as SHA-256 hashes</td></tr>
+    <tr><td>Token consumption</td><td>Atomic single-query UPDATE to prevent race conditions</td></tr>
+    <tr><td>Proof-of-work</td><td>Argon2id-based hashcash to deter automated signups</td></tr>
+    <tr><td>Rate limiting</td><td>Redis-backed per-IP and per-email rate limits</td></tr>
+    <tr><td>CORS</td><td>Per-app allowed origins, no wildcard with credentials</td></tr>
+    <tr><td>Cookie security</td><td>HttpOnly, Secure, SameSite=Lax</td></tr>
+  </table>
+</main>
+
+<script>
+document.querySelectorAll('.sidebar a').forEach(a => {
+  if (a.getAttribute('href') === location.pathname.split('/').pop()) a.classList.add('active');
+  else if (a.getAttribute('href') !== location.pathname.split('/').pop()) a.classList.remove('active');
+});
+</script>
+</body>
+</html>

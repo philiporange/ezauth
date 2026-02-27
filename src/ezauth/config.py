@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # AWS SES
     ses_region: str = "us-east-1"
     ses_sender: str = "do-not-reply@example.com"
-    ses_sender_name: str = "EZAuth"
+    ses_sender_name: str = "ezAuth"
 
     # JWT
     jwt_algorithm: str = "RS256"

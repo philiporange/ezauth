@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deployment - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html" class="active">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Deployment</h1>
+  <p class="subtitle">Deploy ezAuth to production on a VPS with Caddy, PostgreSQL, and Redis.</p>
+
+  <h2>Requirements</h2>
+  <ul>
+    <li>A Linux VPS (Debian/Ubuntu recommended)</li>
+    <li>Python 3.11+</li>
+    <li>PostgreSQL 16+</li>
+    <li>Redis 7+</li>
+    <li>A domain name with DNS configured</li>
+  </ul>
+
+  <h2>Stack</h2>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Caddy</td><td>Reverse proxy with automatic TLS (Let's Encrypt)</td></tr>
+    <tr><td>Uvicorn</td><td>ASGI application server</td></tr>
+    <tr><td>PostgreSQL</td><td>Primary database</td></tr>
+    <tr><td>Redis</td><td>Caching, rate limiting, session state</td></tr>
+    <tr><td>systemd</td><td>Process management</td></tr>
+  </table>
+
+  <h2>1. Install Dependencies</h2>
+  <pre><code><span class="cm"># PostgreSQL</span>
+sudo apt install postgresql
+
+<span class="cm"># Redis</span>
+sudo apt install redis
+
+<span class="cm"># Caddy</span>
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf <span class="str">'https://dl.cloudsmith.io/public/caddy/stable/gpg.key'</span> | sudo gpg --dearmor -o /usr/share/keyrings/caddy.gpg
+echo <span class="str">"deb [signed-by=/usr/share/keyrings/caddy.gpg] https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main"</span> | sudo tee /etc/apt/sources.list.d/caddy.list
+sudo apt update && sudo apt install caddy</code></pre>
+
+  <h2>2. Set Up the Database</h2>
+  <pre><code>sudo -u postgres createuser ezauth
+sudo -u postgres createdb ezauth -O ezauth
+sudo -u postgres psql -c <span class="str">"ALTER USER ezauth PASSWORD 'your-secure-password';"</span></code></pre>
+
+  <h2>3. Deploy the Application</h2>
+  <pre><code><span class="cm"># Copy files to the server</span>
+rsync -avz --exclude .git --exclude __pycache__ ./ user@server:/opt/ezauth/
+
+<span class="cm"># On the server: install Python dependencies</span>
+cd /opt/ezauth
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+
+<span class="cm"># Run migrations</span>
+alembic upgrade head</code></pre>
+
+  <h2>4. Configure Environment</h2>
+  <p>Create <code>/opt/ezauth/.env</code> with your production settings:</p>
+  <pre><code>DATABASE_URL=postgresql+asyncpg://ezauth:password@localhost:5432/ezauth
+REDIS_URL=redis://localhost:6379/0
+SES_REGION=us-east-1
+SES_SENDER=noreply@yourdomain.com
+DASHBOARD_SECRET_KEY=your-dashboard-password
+SESSION_COOKIE_SECURE=true</code></pre>
+
+  <h2>5. Configure Caddy</h2>
+  <p>Edit <code>/etc/caddy/Caddyfile</code>:</p>
+  <pre><code>auth.yourdomain.com {
+    reverse_proxy 127.0.0.1:8001
+}</code></pre>
+  <pre><code>sudo systemctl reload caddy</code></pre>
+
+  <h2>6. Create systemd Service</h2>
+  <p>Create <code>/etc/systemd/system/ezauth.service</code>:</p>
+  <pre><code>[Unit]
+Description=EZAuth
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=ezauth
+WorkingDirectory=/opt/ezauth
+EnvironmentFile=/opt/ezauth/.env
+ExecStart=/opt/ezauth/.venv/bin/uvicorn ezauth.main:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+  <pre><code>sudo systemctl daemon-reload
+sudo systemctl enable ezauth
+sudo systemctl start ezauth</code></pre>
+
+  <h2>7. Verify</h2>
+  <pre><code><span class="cm"># Check the service is running</span>
+sudo systemctl status ezauth
+
+<span class="cm"># Check the API responds</span>
+curl https://auth.yourdomain.com/docs</code></pre>
+
+  <h2>Updating</h2>
+  <pre><code><span class="cm"># Sync new code</span>
+rsync -avz --exclude .git --exclude __pycache__ ./ user@server:/opt/ezauth/
+
+<span class="cm"># On the server</span>
+cd /opt/ezauth
+source .venv/bin/activate
+pip install -e .
+alembic upgrade head
+sudo systemctl restart ezauth</code></pre>
+</main>
+</body>
+</html>

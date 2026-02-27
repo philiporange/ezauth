@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Object Storage - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html" class="active">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Object Storage</h1>
+  <p class="subtitle">Store and retrieve files (images, documents, etc.) using S3-compatible object storage. All objects are user-scoped.</p>
+
+  <h2>Overview</h2>
+  <p>ezAuth provides a managed file storage layer backed by any S3-compatible service (AWS S3, Backblaze B2, MinIO, etc.). Objects are organized into buckets and scoped to individual users.</p>
+
+  <h2>Concepts</h2>
+  <ul>
+    <li><strong>Bucket</strong> &mdash; a named container for objects, scoped to your application</li>
+    <li><strong>Object</strong> &mdash; a file identified by a key (path), with associated content type and size</li>
+    <li><strong>User-scoped</strong> &mdash; every object belongs to a specific user. Objects are uniquely identified by <code>(bucket_id, user_id, key)</code></li>
+  </ul>
+
+  <h2>Configuration</h2>
+  <p>Set the following environment variables to enable object storage:</p>
+  <table>
+    <tr><th>Variable</th><th>Description</th></tr>
+    <tr><td><code>S3_ENDPOINT_URL</code></td><td>S3-compatible endpoint (e.g., <code>https://s3.us-west-004.backblazeb2.com</code>)</td></tr>
+    <tr><td><code>S3_ACCESS_KEY_ID</code></td><td>S3 access key</td></tr>
+    <tr><td><code>S3_SECRET_ACCESS_KEY</code></td><td>S3 secret key</td></tr>
+    <tr><td><code>S3_BUCKET_NAME</code></td><td>S3 bucket name (the actual S3 bucket, not ezAuth buckets)</td></tr>
+    <tr><td><code>S3_REGION</code></td><td>S3 region (default: <code>us-east-1</code>)</td></tr>
+    <tr><td><code>OBJECT_STORAGE_MAX_OBJECT_BYTES</code></td><td>Max size per object (default: 50 MB)</td></tr>
+    <tr><td><code>OBJECT_STORAGE_LIMIT_BYTES</code></td><td>Total storage per app (default: 1 GB)</td></tr>
+  </table>
+
+  <h2>Buckets</h2>
+  <pre><code><span class="cm">// Create a bucket</span>
+<span class="kw">const</span> <span class="var">bucket</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">buckets</span>.<span class="fn">create</span>({ <span class="prop">name</span>: <span class="str">'avatars'</span> })
+
+<span class="cm">// List buckets</span>
+<span class="kw">const</span> { <span class="var">buckets</span> } = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">buckets</span>.<span class="fn">list</span>()
+
+<span class="cm">// Delete a bucket</span>
+<span class="kw">await</span> <span class="var">ez</span>.<span class="prop">buckets</span>.<span class="fn">delete</span>(<span class="var">bucket</span>.<span class="prop">id</span>)</code></pre>
+
+  <h2>Uploading Objects</h2>
+
+  <h3>JavaScript (Node.js)</h3>
+  <p>The JavaScript SDK doesn't include bucket object methods directly. Use the REST API:</p>
+  <pre><code><span class="kw">const</span> <span class="var">response</span> = <span class="kw">await</span> <span class="fn">fetch</span>(
+  <span class="str">`${baseUrl}/v1/buckets/${bucketId}/objects/avatar.png`</span>,
+  {
+    <span class="prop">method</span>: <span class="str">'PUT'</span>,
+    <span class="prop">headers</span>: {
+      <span class="str">'Authorization'</span>: <span class="str">`Bearer ${secretKey}`</span>,
+      <span class="str">'Content-Type'</span>: <span class="str">'image/png'</span>,
+    },
+    <span class="prop">body</span>: <span class="var">imageBuffer</span>,
+  }
+)</code></pre>
+
+  <h3>Python</h3>
+  <pre><code><span class="cm"># Upload</span>
+<span class="var">ez</span>.buckets.objects.<span class="fn">put</span>(
+    <span class="var">bucket</span>[<span class="str">"id"</span>],
+    <span class="str">"avatar.png"</span>,
+    <span class="var">image_bytes</span>,
+    <span class="str">"image/png"</span>,
+)
+
+<span class="cm"># Download</span>
+<span class="var">data</span>, <span class="var">content_type</span> = <span class="var">ez</span>.buckets.objects.<span class="fn">get</span>(<span class="var">bucket</span>[<span class="str">"id"</span>], <span class="str">"avatar.png"</span>)
+
+<span class="cm"># Delete</span>
+<span class="var">ez</span>.buckets.objects.<span class="fn">delete</span>(<span class="var">bucket</span>[<span class="str">"id"</span>], <span class="str">"avatar.png"</span>)
+
+<span class="cm"># List objects</span>
+<span class="var">result</span> = <span class="var">ez</span>.buckets.objects.<span class="fn">list</span>(<span class="var">bucket</span>[<span class="str">"id"</span>], <span class="param">limit</span>=<span class="num">50</span>)</code></pre>
+
+  <h3>Swift</h3>
+  <pre><code><span class="cm">// Upload</span>
+<span class="kw">let</span> <span class="var">obj</span> = <span class="kw">try await</span> <span class="var">ez</span>.buckets.objects.<span class="fn">put</span>(
+    <span class="param">bucketId</span>: bucket.id,
+    <span class="param">key</span>: <span class="str">"avatar.png"</span>,
+    <span class="param">data</span>: imageData,
+    <span class="param">contentType</span>: <span class="str">"image/png"</span>
+)
+
+<span class="cm">// Download</span>
+<span class="kw">let</span> (<span class="var">data</span>, <span class="var">contentType</span>) = <span class="kw">try await</span> <span class="var">ez</span>.buckets.objects.<span class="fn">get</span>(
+    <span class="param">bucketId</span>: bucket.id,
+    <span class="param">key</span>: <span class="str">"avatar.png"</span>
+)</code></pre>
+
+  <h2>User-Scoped Access</h2>
+  <p>With the secret key, specify <code>user_id</code> to manage objects on behalf of a user. With a publishable key + session, the user is automatically inferred from the JWT.</p>
+  <pre><code><span class="cm"># Backend: access a specific user's objects</span>
+<span class="var">data</span>, <span class="var">ct</span> = <span class="var">ez</span>.buckets.objects.<span class="fn">get</span>(
+    <span class="var">bucket_id</span>,
+    <span class="str">"avatar.png"</span>,
+    <span class="param">user_id</span>=<span class="str">"user-uuid"</span>,
+)</code></pre>
+
+  <h2>Storage Limits</h2>
+  <table>
+    <tr><th>Limit</th><th>Default</th><th>Config Variable</th></tr>
+    <tr><td>Max object size</td><td>50 MB</td><td><code>OBJECT_STORAGE_MAX_OBJECT_BYTES</code></td></tr>
+    <tr><td>Total storage per app</td><td>1 GB</td><td><code>OBJECT_STORAGE_LIMIT_BYTES</code></td></tr>
+  </table>
+
+  <p>Check current usage:</p>
+  <pre><code><span class="kw">const</span> <span class="var">usage</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">storage</span>.<span class="fn">get</span>()
+<span class="cm">// { used_bytes: 52428800, limit_bytes: 1073741824, used_percent: 4.88 }</span></code></pre>
+</main>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OAuth - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html" class="active">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>OAuth (Google &amp; Apple)</h1>
+  <p class="subtitle">Let users sign in with their Google or Apple accounts. ezAuth handles the full OAuth 2.0 code flow, ID token verification, and user creation.</p>
+
+  <h2>Supported Providers</h2>
+  <table>
+    <tr><th>Provider</th><th>Flow</th><th>ID Token Verification</th></tr>
+    <tr><td>Google</td><td>OAuth 2.0 authorization code</td><td>JWKS (cached 1 hour)</td></tr>
+    <tr><td>Apple</td><td>OAuth 2.0 with <code>form_post</code> response mode</td><td>JWKS (cached 1 hour)</td></tr>
+  </table>
+
+  <h2>Setup</h2>
+
+  <h3>Google</h3>
+  <ol>
+    <li>Go to the <a href="https://console.cloud.google.com/apis/credentials">Google Cloud Console</a></li>
+    <li>Create an OAuth 2.0 Client ID (Web application)</li>
+    <li>Add your ezAuth callback URL as an authorized redirect URI: <code>https://your-ezauth.com/v1/oauth/google/callback</code></li>
+    <li>Configure the provider in ezAuth via the dashboard or API</li>
+  </ol>
+
+  <h3>Apple</h3>
+  <ol>
+    <li>Go to the <a href="https://developer.apple.com/account/resources/identifiers/list/serviceId">Apple Developer Portal</a></li>
+    <li>Create a Services ID with "Sign in with Apple" enabled</li>
+    <li>Create a key for Sign in with Apple</li>
+    <li>Add your callback URL: <code>https://your-ezauth.com/v1/oauth/apple/callback</code></li>
+    <li>Configure the provider in ezAuth with your team ID, client ID, key ID, and private key</li>
+  </ol>
+
+  <h3>Configure via API</h3>
+  <p>Use the secret key to configure OAuth providers:</p>
+  <pre><code><span class="cm">// Configure Google OAuth</span>
+<span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://your-ezauth.com/v1/oauth/providers'</span>, {
+  <span class="prop">method</span>: <span class="str">'POST'</span>,
+  <span class="prop">headers</span>: {
+    <span class="str">'Authorization'</span>: <span class="str">'Bearer sk_live_...'</span>,
+    <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+  },
+  <span class="prop">body</span>: <span class="type">JSON</span>.<span class="fn">stringify</span>({
+    <span class="prop">provider</span>: <span class="str">'google'</span>,
+    <span class="prop">client_id</span>: <span class="str">'your-google-client-id.apps.googleusercontent.com'</span>,
+    <span class="prop">client_secret</span>: <span class="str">'GOCSPX-...'</span>,
+  }),
+})</code></pre>
+
+  <pre><code><span class="cm">// Configure Apple OAuth</span>
+<span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://your-ezauth.com/v1/oauth/providers'</span>, {
+  <span class="prop">method</span>: <span class="str">'POST'</span>,
+  <span class="prop">headers</span>: {
+    <span class="str">'Authorization'</span>: <span class="str">'Bearer sk_live_...'</span>,
+    <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+  },
+  <span class="prop">body</span>: <span class="type">JSON</span>.<span class="fn">stringify</span>({
+    <span class="prop">provider</span>: <span class="str">'apple'</span>,
+    <span class="prop">client_id</span>: <span class="str">'com.yourapp.service'</span>,
+    <span class="prop">team_id</span>: <span class="str">'ABCD1234EF'</span>,
+    <span class="prop">key_id</span>: <span class="str">'XYZ789'</span>,
+    <span class="prop">private_key</span>: <span class="str">'-----BEGIN EC PRIVATE KEY-----\\n...'</span>,
+  }),
+})</code></pre>
+
+  <h2>Client-Side Flow</h2>
+  <p>From your frontend, redirect the user to the OAuth authorization URL:</p>
+
+  <h3>JavaScript</h3>
+  <pre><code><span class="kw">const</span> { <span class="var">authorization_url</span> } = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signInWithOAuth</span>({
+  <span class="prop">provider</span>: <span class="str">'google'</span>,
+  <span class="prop">redirectUrl</span>: <span class="str">'https://myapp.com/dashboard'</span>,
+})
+
+<span class="cm">// Redirect the user to the authorization URL</span>
+window.location.href = <span class="var">authorization_url</span></code></pre>
+
+  <h3>Swift</h3>
+  <pre><code><span class="kw">let</span> <span class="var">result</span> = <span class="kw">try await</span> <span class="var">ez</span>.auth.<span class="fn">signInWithOAuth</span>(
+    <span class="param">provider</span>: <span class="str">"google"</span>,
+    <span class="param">redirectUrl</span>: <span class="str">"https://myapp.com/dashboard"</span>
+)
+<span class="cm">// Open result.authorization_url in a browser/webview</span></code></pre>
+
+  <h2>How It Works</h2>
+  <ol>
+    <li>Your app calls <code>GET /v1/oauth/{provider}/authorize?redirect_url=...</code></li>
+    <li>ezAuth generates a CSRF nonce, stores it in Redis (10-minute TTL), and returns the provider's authorization URL</li>
+    <li>The user authenticates with Google/Apple and is redirected back to ezAuth's callback</li>
+    <li>ezAuth exchanges the authorization code for an ID token</li>
+    <li>The ID token signature is verified against the provider's JWKS (cached 1 hour)</li>
+    <li>ezAuth upserts the user via the OAuth identity (creates a new user or links to an existing one)</li>
+    <li>A session is created, the <code>__session</code> cookie is set, and the user is redirected to your <code>redirect_url</code></li>
+  </ol>
+
+  <div class="callout callout-info">
+    <p class="callout-title">OAuth Identity Linking</p>
+    <p>Users are matched by <code>(app_id, provider, provider_user_id)</code>. If a user already exists with the same email, the OAuth identity is linked to that user. If not, a new user is created with the provider's email.</p>
+  </div>
+
+  <h2>Callback URLs</h2>
+  <table>
+    <tr><th>Provider</th><th>Callback URL</th><th>Method</th></tr>
+    <tr><td>Google</td><td><code>/v1/oauth/google/callback</code></td><td>GET (query params)</td></tr>
+    <tr><td>Apple</td><td><code>/v1/oauth/apple/callback</code></td><td>POST (form_post)</td></tr>
+  </table>
+
+  <h2>Managing Providers</h2>
+  <p>Use the secret key to list, configure, or remove OAuth providers:</p>
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td><span class="badge badge-get">GET</span></td><td><code>/v1/oauth/providers</code></td><td>List configured providers (secrets redacted)</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/v1/oauth/providers</code></td><td>Configure a provider</td></tr>
+    <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/v1/oauth/providers/{provider}</code></td><td>Remove a provider</td></tr>
+  </table>
+</main>
+</body>
+</html>

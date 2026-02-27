@@ -13,6 +13,7 @@ from ezauth.schemas.objects import (
     ObjectListResponse,
     ObjectResponse,
     ObjectStorageResponse,
+    UpdateBucketRequest,
 )
 from ezauth.services import objects as objects_svc
 from ezauth.services.auth import AuthError
@@ -39,7 +40,13 @@ async def create_bucket(
 ):
     _require_admin(auth)
     try:
-        bucket = await objects_svc.create_bucket(db, app_id=auth.app.id, name=body.name)
+        bucket = await objects_svc.create_bucket(
+            db,
+            app_id=auth.app.id,
+            name=body.name,
+            max_size_bytes=body.max_size_bytes,
+            max_size_bytes_per_user=body.max_size_bytes_per_user,
+        )
         return bucket
     except AuthError as e:
         if e.code == "bucket_exists":
@@ -83,6 +90,28 @@ async def get_bucket(
 ):
     try:
         bucket = await objects_svc.get_bucket(db, app_id=auth.app.id, bucket_id=bucket_id)
+        return bucket
+    except AuthError as e:
+        raise HTTPException(status_code=404, detail=e.message)
+
+
+@router.patch("/buckets/{bucket_id}", response_model=BucketResponse)
+async def update_bucket(
+    bucket_id: uuid.UUID,
+    body: UpdateBucketRequest,
+    db: DbSession,
+    auth: AppAuthDep,
+):
+    _require_admin(auth)
+    try:
+        kwargs: dict = {}
+        if "max_size_bytes" in body.model_fields_set:
+            kwargs["max_size_bytes"] = body.max_size_bytes
+        if "max_size_bytes_per_user" in body.model_fields_set:
+            kwargs["max_size_bytes_per_user"] = body.max_size_bytes_per_user
+        bucket = await objects_svc.update_bucket(
+            db, app_id=auth.app.id, bucket_id=bucket_id, **kwargs
+        )
         return bucket
     except AuthError as e:
         raise HTTPException(status_code=404, detail=e.message)

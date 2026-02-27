@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bot Authentication - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html" class="active">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Bot Authentication</h1>
+  <p class="subtitle">Authenticate non-human agents and bots using Ed25519 public key cryptography.</p>
+
+  <h2>Overview</h2>
+  <p>Bot authentication allows automated agents to authenticate without email or passwords. Bots register with an Ed25519 public key and authenticate by signing a challenge message with their private key.</p>
+
+  <h2>Registration</h2>
+  <p>Bot signup requires a confirmed donation challenge from <code>confirmations.info</code> and an Ed25519 public key:</p>
+
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/bot/signup</span>
+  </div>
+
+  <h3>Request Body</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>challenge_id</code></td><td>string</td><td>Confirmed challenge ID from confirmations.info</td></tr>
+    <tr><td><code>public_key</code></td><td>string</td><td>Base64-encoded Ed25519 public key</td></tr>
+  </table>
+
+  <h3>Response</h3>
+  <pre><code>{
+  <span class="str">"bot_id"</span>: <span class="str">"uuid"</span>,
+  <span class="str">"public_key"</span>: <span class="str">"base64-encoded-public-key"</span>
+}</code></pre>
+
+  <h2>Authentication</h2>
+  <p>To authenticate, the bot signs a message containing its identity and a timestamp:</p>
+
+  <div class="endpoint">
+    <span class="badge badge-post">POST</span>
+    <span class="path">/v1/bot/auth</span>
+  </div>
+
+  <h3>Message Format</h3>
+  <pre><code>ezauth:bot_auth:{app_id}:{bot_id}:{timestamp}</code></pre>
+  <p>Where <code>timestamp</code> is the current Unix timestamp in seconds.</p>
+
+  <h3>Request Body</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>bot_id</code></td><td>string</td><td>The bot's user ID (from signup)</td></tr>
+    <tr><td><code>timestamp</code></td><td>integer</td><td>Current Unix timestamp (seconds)</td></tr>
+    <tr><td><code>signature</code></td><td>string</td><td>Base64-encoded Ed25519 signature of the message</td></tr>
+  </table>
+
+  <h3>Response</h3>
+  <p>Returns a standard session response with <code>access_token</code>, <code>refresh_token</code>, <code>user_id</code>, and <code>session_id</code>.</p>
+
+  <h3>Example (Python)</h3>
+  <pre><code><span class="kw">import</span> <span class="type">time</span>
+<span class="kw">import</span> <span class="type">base64</span>
+<span class="kw">from</span> <span class="type">cryptography.hazmat.primitives.asymmetric.ed25519</span> <span class="kw">import</span> <span class="type">Ed25519PrivateKey</span>
+
+<span class="cm"># Generate key pair (do once, store the private key securely)</span>
+<span class="var">private_key</span> = <span class="type">Ed25519PrivateKey</span>.<span class="fn">generate</span>()
+<span class="var">public_key_bytes</span> = <span class="var">private_key</span>.<span class="fn">public_key</span>().<span class="fn">public_bytes_raw</span>()
+<span class="var">public_key_b64</span> = <span class="type">base64</span>.<span class="fn">b64encode</span>(<span class="var">public_key_bytes</span>).<span class="fn">decode</span>()
+
+<span class="cm"># Authenticate</span>
+<span class="var">ts</span> = <span class="fn">int</span>(<span class="type">time</span>.<span class="fn">time</span>())
+<span class="var">message</span> = <span class="str">f"ezauth:bot_auth:</span>{<span class="var">app_id</span>}<span class="str">:</span>{<span class="var">bot_id</span>}<span class="str">:</span>{<span class="var">ts</span>}<span class="str">"</span>
+<span class="var">signature</span> = <span class="var">private_key</span>.<span class="fn">sign</span>(<span class="var">message</span>.<span class="fn">encode</span>())
+<span class="var">sig_b64</span> = <span class="type">base64</span>.<span class="fn">b64encode</span>(<span class="var">signature</span>).<span class="fn">decode</span>()</code></pre>
+
+  <h2>Security</h2>
+  <ul>
+    <li><strong>Timestamp window</strong> &mdash; signatures must be within 5 minutes of the current time (<code>BOT_AUTH_TIMESTAMP_TOLERANCE=300</code>)</li>
+    <li><strong>No replay</strong> &mdash; the timestamp in the signed message prevents replaying old signatures</li>
+    <li><strong>Ed25519</strong> &mdash; fast, secure, and well-suited for programmatic signing</li>
+    <li><strong>Donation challenge</strong> &mdash; signup requires a confirmed challenge from confirmations.info, preventing mass bot creation</li>
+  </ul>
+</main>
+</body>
+</html>

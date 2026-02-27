@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Edit {{ name }} - EZAuth{% endblock %}
+{% block title %}Edit {{ name }} - ezAuth{% endblock %}
 {% block content %}
 <h2>Edit: {{ name }}</h2>
 <form hx-post="/dashboard/email-templates/{{ name }}" hx-target="#save-status" hx-swap="innerHTML">

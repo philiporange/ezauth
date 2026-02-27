@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cross-Domain SSO - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html" class="active">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Cross-Domain SSO</h1>
+  <p class="subtitle">Share authentication across multiple domains within the same tenant using a secure bridge/exchange pattern.</p>
+
+  <h2>Overview</h2>
+  <p>When you have multiple applications on different domains (e.g., <code>app.example.com</code> and <code>blog.example.com</code>), cookies can't be shared between them. ezAuth's SSO bridge solves this by transferring sessions via short-lived, one-time tokens.</p>
+
+  <div class="callout callout-info">
+    <p class="callout-title">Requirement</p>
+    <p>Both applications must belong to the same <strong>tenant</strong> in ezAuth. Cross-tenant SSO is not allowed.</p>
+  </div>
+
+  <h2>How It Works</h2>
+  <ol>
+    <li>User is authenticated on <strong>App A</strong> (<code>app.example.com</code>)</li>
+    <li>User navigates to <strong>App B</strong> (<code>blog.example.com</code>) and needs a session there</li>
+    <li>App B redirects the user to App A's SSO bridge endpoint</li>
+    <li>The bridge generates a one-time token (60-second TTL), stores it in Redis, and redirects to App B with the token</li>
+    <li>App B exchanges the token for a new session on its domain</li>
+  </ol>
+
+  <h2>Step 1: Bridge (on the source app)</h2>
+  <p>Redirect an authenticated user to the bridge endpoint:</p>
+  <pre><code><span class="cm">// Redirect to the SSO bridge</span>
+<span class="kw">const</span> <span class="var">bridgeUrl</span> = <span class="str">'https://app.example.com/v1/sso/bridge?return_to='</span>
+  + <span class="fn">encodeURIComponent</span>(<span class="str">'https://blog.example.com/sso-callback'</span>)
+
+window.location.href = <span class="var">bridgeUrl</span></code></pre>
+
+  <p>The bridge endpoint (<code>GET /v1/sso/bridge</code>):</p>
+  <ul>
+    <li>Requires an active session (cookie or bearer token)</li>
+    <li>Creates a one-time SSO token stored in Redis with a 60-second TTL</li>
+    <li>Redirects to <code>return_to</code> with <code>?__sso_token=&lt;token&gt;</code> appended</li>
+  </ul>
+
+  <h2>Step 2: Exchange (on the target app)</h2>
+  <p>On the target domain's callback page, extract the token and exchange it:</p>
+
+  <pre><code><span class="cm">// On blog.example.com/sso-callback</span>
+<span class="kw">const</span> <span class="var">params</span> = <span class="kw">new</span> <span class="type">URLSearchParams</span>(window.location.search)
+<span class="kw">const</span> <span class="var">ssoToken</span> = <span class="var">params</span>.<span class="fn">get</span>(<span class="str">'__sso_token'</span>)
+
+<span class="kw">if</span> (<span class="var">ssoToken</span>) {
+  <span class="kw">const</span> <span class="var">session</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">ssoExchange</span>(<span class="var">ssoToken</span>)
+  <span class="cm">// session.access_token, session.refresh_token</span>
+  <span class="cm">// The __session cookie is also set automatically</span>
+}</code></pre>
+
+  <p>The exchange endpoint (<code>POST /v1/sso/exchange</code>):</p>
+  <ul>
+    <li>Validates the one-time token from Redis (atomic get + delete)</li>
+    <li>Verifies both apps belong to the same tenant</li>
+    <li>Creates a new session on the target app's domain</li>
+    <li>Sets the <code>__session</code> cookie and returns tokens</li>
+  </ul>
+
+  <h2>Security</h2>
+  <ul>
+    <li><strong>One-time use</strong> &mdash; tokens are atomically deleted on exchange (Redis pipeline: GET + DELETE)</li>
+    <li><strong>Short-lived</strong> &mdash; tokens expire after 60 seconds</li>
+    <li><strong>Tenant isolation</strong> &mdash; exchange verifies the source and target apps share a tenant</li>
+    <li><strong>Token hashing</strong> &mdash; tokens are stored as SHA-256 hashes in Redis</li>
+  </ul>
+</main>
+</body>
+</html>

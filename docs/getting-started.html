@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quick Start - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html" class="active">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Quick Start</h1>
+  <p class="subtitle">Get ezAuth running locally and authenticate your first user in under 5 minutes.</p>
+
+  <h2>Prerequisites</h2>
+  <ul>
+    <li>Python 3.11+</li>
+    <li>Docker &amp; Docker Compose (for PostgreSQL and Redis)</li>
+  </ul>
+
+  <h2>1. Start Infrastructure</h2>
+  <p>Start PostgreSQL and Redis using the included Docker Compose file:</p>
+  <pre><code>docker compose up -d</code></pre>
+  <p>This starts PostgreSQL 16 on port 5432 and Redis 7 on port 6379.</p>
+
+  <h2>2. Install &amp; Configure</h2>
+  <pre><code><span class="cm"># Install the ezAuth package</span>
+pip install -e .
+
+<span class="cm"># Copy and edit the environment file</span>
+cp .env.example .env
+
+<span class="cm"># Run database migrations</span>
+alembic upgrade head
+
+<span class="cm"># Start the server</span>
+uvicorn ezauth.main:app --reload --port 8000</code></pre>
+
+  <p>The API is now running at <code>http://localhost:8000</code>. The interactive API docs are at <code>http://localhost:8000/docs</code>.</p>
+
+  <h2>3. Create a Tenant &amp; Application</h2>
+  <p>Open the admin dashboard at <code>http://localhost:8000/dashboard</code> and sign in with your <code>DASHBOARD_SECRET_KEY</code>. Then:</p>
+  <ol>
+    <li>Create a <strong>Tenant</strong> (e.g., "My Company")</li>
+    <li>Create an <strong>Application</strong> within the tenant (e.g., "My App - Dev")</li>
+    <li>Copy the <strong>publishable key</strong> (<code>pk_...</code>) and <strong>secret key</strong> (<code>sk_...</code>)</li>
+  </ol>
+
+  <h2>4. Add Auth to Your Frontend</h2>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab(event, 'js')">JavaScript</button>
+    <button class="tab" onclick="switchTab(event, 'py')">Python</button>
+    <button class="tab" onclick="switchTab(event, 'curl')">cURL</button>
+  </div>
+
+  <div id="tab-js" class="tab-content active">
+    <pre><code><span class="kw">import</span> { <span class="type">EZAuth</span> } <span class="kw">from</span> <span class="str">'@ezauth/client'</span>
+
+<span class="kw">const</span> <span class="var">ez</span> = <span class="kw">new</span> <span class="type">EZAuth</span>({
+  <span class="prop">baseUrl</span>: <span class="str">'http://localhost:8000'</span>,
+  <span class="prop">publishableKey</span>: <span class="str">'pk_dev_...'</span>,
+})
+
+<span class="cm">// Sign up a new user</span>
+<span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signUp</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">password</span>: <span class="str">'s3cret'</span>,
+})
+
+<span class="cm">// Check email for 6-digit code, then verify</span>
+<span class="kw">const</span> <span class="var">session</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">verifyCode</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">code</span>: <span class="str">'123456'</span>,
+})
+
+<span class="cm">// Sign in with password</span>
+<span class="kw">const</span> <span class="var">session</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">signIn</span>({
+  <span class="prop">email</span>: <span class="str">'alice@example.com'</span>,
+  <span class="prop">password</span>: <span class="str">'s3cret'</span>,
+})
+
+<span class="cm">// Get current user</span>
+<span class="kw">const</span> <span class="var">me</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">auth</span>.<span class="fn">getSession</span>()
+console.<span class="fn">log</span>(<span class="var">me</span>.<span class="prop">email</span>)</code></pre>
+  </div>
+
+  <div id="tab-py" class="tab-content">
+    <pre><code><span class="kw">from</span> <span class="type">ezauth_client</span> <span class="kw">import</span> <span class="type">EZAuth</span>
+
+<span class="var">ez</span> = <span class="type">EZAuth</span>(
+    <span class="param">base_url</span>=<span class="str">"http://localhost:8000"</span>,
+    <span class="param">publishable_key</span>=<span class="str">"pk_dev_..."</span>,
+)
+
+<span class="cm"># Sign up</span>
+<span class="var">ez</span>.auth.<span class="fn">sign_up</span>(<span class="str">"alice@example.com"</span>, <span class="param">password</span>=<span class="str">"s3cret"</span>)
+
+<span class="cm"># Verify code from email</span>
+<span class="var">session</span> = <span class="var">ez</span>.auth.<span class="fn">verify_code</span>(<span class="str">"alice@example.com"</span>, <span class="str">"123456"</span>)
+
+<span class="cm"># Sign in</span>
+<span class="var">session</span> = <span class="var">ez</span>.auth.<span class="fn">sign_in</span>(<span class="str">"alice@example.com"</span>, <span class="param">password</span>=<span class="str">"s3cret"</span>)</code></pre>
+  </div>
+
+  <div id="tab-curl" class="tab-content">
+    <pre><code><span class="cm"># Sign up</span>
+curl -X POST http://localhost:8000/v1/signups \
+  -H <span class="str">"X-Publishable-Key: pk_dev_..."</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"email": "alice@example.com", "password": "s3cret"}'</span>
+
+<span class="cm"># Verify code</span>
+curl -X POST http://localhost:8000/v1/verify-code \
+  -H <span class="str">"X-Publishable-Key: pk_dev_..."</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"email": "alice@example.com", "code": "123456"}'</span>
+
+<span class="cm"># Sign in with password</span>
+curl -X POST http://localhost:8000/v1/signins \
+  -H <span class="str">"X-Publishable-Key: pk_dev_..."</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"email": "alice@example.com", "password": "s3cret", "strategy": "password"}'</span>
+
+<span class="cm"># Get current user</span>
+curl http://localhost:8000/v1/me \
+  -H <span class="str">"Authorization: Bearer &lt;access_token&gt;"</span></code></pre>
+  </div>
+
+  <h2>5. Backend Admin Operations</h2>
+  <p>Use the secret key for server-side operations:</p>
+  <pre><code><span class="kw">import</span> { <span class="type">EZAuth</span> } <span class="kw">from</span> <span class="str">'@ezauth/client'</span>
+
+<span class="kw">const</span> <span class="var">ez</span> = <span class="kw">new</span> <span class="type">EZAuth</span>({
+  <span class="prop">baseUrl</span>: <span class="str">'http://localhost:8000'</span>,
+  <span class="prop">secretKey</span>: <span class="str">'sk_dev_...'</span>,
+})
+
+<span class="cm">// List all users</span>
+<span class="kw">const</span> { <span class="var">users</span>, <span class="var">total</span> } = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">users</span>.<span class="fn">list</span>({ <span class="prop">limit</span>: <span class="num">10</span> })
+
+<span class="cm">// Create a user (skips email verification)</span>
+<span class="kw">const</span> <span class="var">user</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">users</span>.<span class="fn">create</span>({ <span class="prop">email</span>: <span class="str">'bob@example.com'</span> })
+
+<span class="cm">// Create a sign-in token (for server-to-server auth)</span>
+<span class="kw">const</span> <span class="var">token</span> = <span class="kw">await</span> <span class="var">ez</span>.<span class="prop">sessions</span>.<span class="fn">createSignInToken</span>({ <span class="prop">userId</span>: <span class="var">user</span>.<span class="prop">id</span> })</code></pre>
+
+  <h2>6. Verify JWTs in Your Backend</h2>
+  <p>Use the <a href="server-sdk.html">Python Server SDK</a> to verify ezAuth JWTs in your own API:</p>
+  <pre><code><span class="kw">from</span> <span class="type">fastapi</span> <span class="kw">import</span> <span class="type">FastAPI</span>
+<span class="kw">from</span> <span class="type">ezauth_sdk</span> <span class="kw">import</span> <span class="type">EZAuthMiddleware</span>
+
+<span class="var">app</span> = <span class="type">FastAPI</span>()
+<span class="var">app</span>.<span class="fn">add_middleware</span>(
+    <span class="type">EZAuthMiddleware</span>,
+    <span class="param">auth_domain</span>=<span class="str">"http://localhost:8000"</span>,
+    <span class="param">public_paths</span>=[<span class="str">"/health"</span>],
+)
+
+<span class="kw">@</span><span class="var">app</span>.<span class="fn">get</span>(<span class="str">"/protected"</span>)
+<span class="kw">async def</span> <span class="fn">protected</span>(<span class="param">request</span>):
+    <span class="var">auth</span> = <span class="var">request</span>.state.auth
+    <span class="kw">return</span> {<span class="str">"user_id"</span>: <span class="var">auth</span>.user_id}</code></pre>
+
+  <h2>Next Steps</h2>
+  <ul>
+    <li><a href="authentication.html">Learn about all auth flows</a></li>
+    <li><a href="oauth.html">Set up Google &amp; Apple OAuth</a></li>
+    <li><a href="custom-tables.html">Store data with custom tables</a></li>
+    <li><a href="api-reference.html">Explore the full API reference</a></li>
+    <li><a href="configuration.html">Configure ezAuth for production</a></li>
+  </ul>
+</main>
+
+<script>
+function switchTab(e, id) {
+  const group = e.target.closest('.tabs') || e.target.parentElement;
+  group.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  let sibling = group.nextElementSibling;
+  while (sibling && sibling.classList.contains('tab-content')) {
+    sibling.classList.remove('active');
+    sibling = sibling.nextElementSibling;
+  }
+  document.getElementById('tab-' + id).classList.add('active');
+}
+</script>
+</body>
+</html>

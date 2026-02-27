@@ -8,11 +8,20 @@ from pydantic import BaseModel, Field
 
 class CreateBucketRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-zA-Z_][a-zA-Z0-9_\-]*$")
+    max_size_bytes: int | None = Field(None, gt=0)
+    max_size_bytes_per_user: int | None = Field(None, gt=0)
+
+
+class UpdateBucketRequest(BaseModel):
+    max_size_bytes: int | None = None
+    max_size_bytes_per_user: int | None = None
 
 
 class BucketResponse(BaseModel):
     id: uuid.UUID
     name: str
+    max_size_bytes: int | None = None
+    max_size_bytes_per_user: int | None = None
     created_at: datetime
     updated_at: datetime
 

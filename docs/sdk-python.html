@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Python SDK - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html" class="active">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Python Client</h1>
+  <p class="subtitle">Python client for ezAuth. Only dependency is httpx. Python 3.11+.</p>
+
+  <h2>Installation</h2>
+  <pre><code>pip install ezauth-client</code></pre>
+
+  <h2>Initialization</h2>
+  <pre><code><span class="kw">from</span> <span class="type">ezauth_client</span> <span class="kw">import</span> <span class="type">EZAuth</span>
+
+<span class="cm"># Backend (secret key)</span>
+<span class="var">ez</span> = <span class="type">EZAuth</span>(
+    <span class="param">base_url</span>=<span class="str">"https://auth.example.com"</span>,
+    <span class="param">secret_key</span>=<span class="str">"sk_live_..."</span>,
+)
+
+<span class="cm"># Frontend (publishable key)</span>
+<span class="var">ez</span> = <span class="type">EZAuth</span>(
+    <span class="param">base_url</span>=<span class="str">"https://auth.example.com"</span>,
+    <span class="param">publishable_key</span>=<span class="str">"pk_live_..."</span>,
+)</code></pre>
+
+  <h3>Constructor Parameters</h3>
+  <table>
+    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>base_url</code></td><td>str</td><td>EZAuth instance URL</td></tr>
+    <tr><td><code>secret_key</code></td><td>str | None</td><td>Secret key for admin operations</td></tr>
+    <tr><td><code>publishable_key</code></td><td>str | None</td><td>Publishable key for frontend auth</td></tr>
+    <tr><td><code>access_token</code></td><td>str | None</td><td>Access token for user-scoped operations</td></tr>
+  </table>
+
+  <h2>Error Handling</h2>
+  <pre><code><span class="kw">from</span> <span class="type">ezauth_client</span> <span class="kw">import</span> <span class="type">EZAuth</span>, <span class="type">EZAuthError</span>
+
+<span class="kw">try</span>:
+    <span class="var">ez</span>.users.<span class="fn">get</span>(<span class="str">"nonexistent"</span>)
+<span class="kw">except</span> <span class="type">EZAuthError</span> <span class="kw">as</span> <span class="var">e</span>:
+    <span class="fn">print</span>(<span class="var">e</span>.message)  <span class="cm"># "User not found"</span>
+    <span class="fn">print</span>(<span class="var">e</span>.status)   <span class="cm"># 404</span>
+    <span class="fn">print</span>(<span class="var">e</span>.code)     <span class="cm"># error code string, if provided</span></code></pre>
+
+  <hr>
+
+  <h2>ez.auth (Publishable Key)</h2>
+
+  <h3>sign_up(email, *, password=None, redirect_url=None, hashcash=None)</h3>
+  <pre><code><span class="var">ez</span>.auth.<span class="fn">sign_up</span>(<span class="str">"alice@example.com"</span>, <span class="param">password</span>=<span class="str">"s3cret"</span>)
+<span class="cm"># Returns: {"status": "verification_sent", "user_id": "uuid"}</span></code></pre>
+
+  <h3>sign_in(email, *, password=None, strategy=None, redirect_url=None)</h3>
+  <pre><code><span class="cm"># Password</span>
+<span class="var">session</span> = <span class="var">ez</span>.auth.<span class="fn">sign_in</span>(<span class="str">"alice@example.com"</span>, <span class="param">password</span>=<span class="str">"s3cret"</span>)
+
+<span class="cm"># Magic link</span>
+<span class="var">ez</span>.auth.<span class="fn">sign_in</span>(<span class="str">"alice@example.com"</span>, <span class="param">redirect_url</span>=<span class="str">"https://myapp.com"</span>)</code></pre>
+
+  <h3>verify_code(email, code)</h3>
+  <pre><code><span class="var">session</span> = <span class="var">ez</span>.auth.<span class="fn">verify_code</span>(<span class="str">"alice@example.com"</span>, <span class="str">"482917"</span>)
+<span class="cm"># Returns: {"access_token": "...", "refresh_token": "...", "user_id": "...", "session_id": "..."}</span></code></pre>
+
+  <h3>get_session(*, access_token=None)</h3>
+  <pre><code><span class="var">me</span> = <span class="var">ez</span>.auth.<span class="fn">get_session</span>(<span class="param">access_token</span>=<span class="str">"eyJhbG..."</span>)
+<span class="cm"># Returns: {"user_id": "...", "email": "...", "email_verified": true}</span></code></pre>
+
+  <h3>sign_out(*, access_token=None)</h3>
+  <pre><code><span class="var">ez</span>.auth.<span class="fn">sign_out</span>(<span class="param">access_token</span>=<span class="str">"eyJhbG..."</span>)</code></pre>
+
+  <h3>refresh_token(refresh_token)</h3>
+  <pre><code><span class="var">new_session</span> = <span class="var">ez</span>.auth.<span class="fn">refresh_token</span>(<span class="str">"rt_..."</span>)</code></pre>
+
+  <h3>sso_exchange(token)</h3>
+  <pre><code><span class="var">session</span> = <span class="var">ez</span>.auth.<span class="fn">sso_exchange</span>(<span class="str">"sso_token"</span>)</code></pre>
+
+  <h3>sign_in_with_oauth(provider, redirect_url)</h3>
+  <pre><code><span class="var">result</span> = <span class="var">ez</span>.auth.<span class="fn">sign_in_with_oauth</span>(<span class="str">"google"</span>, <span class="str">"https://myapp.com/callback"</span>)
+<span class="cm"># result["authorization_url"] — redirect the user here</span></code></pre>
+
+  <h3>request_challenge()</h3>
+  <pre><code><span class="var">challenge</span> = <span class="var">ez</span>.auth.<span class="fn">request_challenge</span>()
+<span class="cm"># {"challenge": "...", "difficulty": 5, "algorithm": "argon2id", "params": {...}}</span></code></pre>
+
+  <hr>
+
+  <h2>ez.users (Secret Key)</h2>
+
+  <h3>list(*, limit=None, offset=None, email=None)</h3>
+  <pre><code><span class="var">result</span> = <span class="var">ez</span>.users.<span class="fn">list</span>(<span class="param">limit</span>=<span class="num">10</span>)
+<span class="cm"># result["users"], result["total"]</span></code></pre>
+
+  <h3>create(email, *, password=None)</h3>
+  <pre><code><span class="var">user</span> = <span class="var">ez</span>.users.<span class="fn">create</span>(<span class="str">"bob@example.com"</span>, <span class="param">password</span>=<span class="str">"optional"</span>)</code></pre>
+
+  <h3>get(user_id)</h3>
+  <pre><code><span class="var">user</span> = <span class="var">ez</span>.users.<span class="fn">get</span>(<span class="str">"user-uuid"</span>)</code></pre>
+
+  <hr>
+
+  <h2>ez.sessions (Secret Key)</h2>
+
+  <h3>revoke(session_id)</h3>
+  <pre><code><span class="var">ez</span>.sessions.<span class="fn">revoke</span>(<span class="str">"session-uuid"</span>)</code></pre>
+
+  <h3>create_sign_in_token(user_id, *, expires_in_seconds=None)</h3>
+  <pre><code><span class="var">result</span> = <span class="var">ez</span>.sessions.<span class="fn">create_sign_in_token</span>(<span class="str">"user-uuid"</span>, <span class="param">expires_in_seconds</span>=<span class="num">300</span>)</code></pre>
+
+  <hr>
+
+  <h2>ez.tables</h2>
+
+  <h3>create(name, *, columns=None)</h3>
+  <pre><code><span class="var">table</span> = <span class="var">ez</span>.tables.<span class="fn">create</span>(<span class="str">"contacts"</span>, <span class="param">columns</span>=[
+    {<span class="str">"name"</span>: <span class="str">"name"</span>, <span class="str">"type"</span>: <span class="str">"text"</span>, <span class="str">"required"</span>: <span class="kw">True</span>},
+    {<span class="str">"name"</span>: <span class="str">"age"</span>, <span class="str">"type"</span>: <span class="str">"int"</span>},
+])</code></pre>
+
+  <h3>list() / get(table_id) / delete(table_id)</h3>
+  <pre><code><span class="var">tables</span> = <span class="var">ez</span>.tables.<span class="fn">list</span>()
+<span class="var">table</span> = <span class="var">ez</span>.tables.<span class="fn">get</span>(<span class="str">"table-uuid"</span>)
+<span class="var">ez</span>.tables.<span class="fn">delete</span>(<span class="str">"table-uuid"</span>)</code></pre>
+
+  <h3>tables.columns.add / update / delete</h3>
+  <pre><code><span class="var">col</span> = <span class="var">ez</span>.tables.columns.<span class="fn">add</span>(<span class="str">"table-uuid"</span>, <span class="str">"email"</span>, <span class="str">"text"</span>, <span class="param">required</span>=<span class="kw">True</span>)
+<span class="var">ez</span>.tables.columns.<span class="fn">update</span>(<span class="str">"table-uuid"</span>, <span class="str">"col-uuid"</span>, <span class="param">name</span>=<span class="str">"full_name"</span>)
+<span class="var">ez</span>.tables.columns.<span class="fn">delete</span>(<span class="str">"table-uuid"</span>, <span class="str">"col-uuid"</span>)</code></pre>
+
+  <h3>tables.rows.insert / get / update / delete / query</h3>
+  <pre><code><span class="var">row</span> = <span class="var">ez</span>.tables.rows.<span class="fn">insert</span>(<span class="str">"table-uuid"</span>, {<span class="str">"name"</span>: <span class="str">"Alice"</span>, <span class="str">"age"</span>: <span class="num">30</span>})
+<span class="var">row</span> = <span class="var">ez</span>.tables.rows.<span class="fn">get</span>(<span class="str">"table-uuid"</span>, <span class="str">"row-uuid"</span>)
+<span class="var">ez</span>.tables.rows.<span class="fn">update</span>(<span class="str">"table-uuid"</span>, <span class="str">"row-uuid"</span>, {<span class="str">"age"</span>: <span class="num">31</span>})
+<span class="var">ez</span>.tables.rows.<span class="fn">delete</span>(<span class="str">"table-uuid"</span>, <span class="str">"row-uuid"</span>)
+
+<span class="var">result</span> = <span class="var">ez</span>.tables.rows.<span class="fn">query</span>(
+    <span class="str">"table-uuid"</span>,
+    <span class="param">filter</span>={<span class="str">"field"</span>: <span class="str">"age"</span>, <span class="str">"op"</span>: <span class="str">"gte"</span>, <span class="str">"value"</span>: <span class="num">18</span>},
+    <span class="param">sort</span>={<span class="str">"field"</span>: <span class="str">"name"</span>, <span class="str">"dir"</span>: <span class="str">"asc"</span>},
+    <span class="param">limit</span>=<span class="num">50</span>,
+)</code></pre>
+
+  <hr>
+
+  <h2>ez.buckets</h2>
+
+  <h3>create(name) / list() / get(bucket_id) / delete(bucket_id)</h3>
+  <pre><code><span class="var">bucket</span> = <span class="var">ez</span>.buckets.<span class="fn">create</span>(<span class="str">"avatars"</span>)
+<span class="var">buckets</span> = <span class="var">ez</span>.buckets.<span class="fn">list</span>()
+<span class="var">bucket</span> = <span class="var">ez</span>.buckets.<span class="fn">get</span>(<span class="str">"bucket-uuid"</span>)
+<span class="var">ez</span>.buckets.<span class="fn">delete</span>(<span class="str">"bucket-uuid"</span>)</code></pre>
+
+  <h3>buckets.objects.put(bucket_id, key, data, content_type=None, *, user_id=None)</h3>
+  <pre><code><span class="var">ez</span>.buckets.objects.<span class="fn">put</span>(<span class="str">"bucket-uuid"</span>, <span class="str">"alice.png"</span>, <span class="var">image_bytes</span>, <span class="str">"image/png"</span>)</code></pre>
+
+  <h3>buckets.objects.get(bucket_id, key, *, user_id=None)</h3>
+  <pre><code><span class="var">data</span>, <span class="var">content_type</span> = <span class="var">ez</span>.buckets.objects.<span class="fn">get</span>(<span class="str">"bucket-uuid"</span>, <span class="str">"alice.png"</span>)
+<span class="cm"># Returns: (bytes, str)</span></code></pre>
+
+  <h3>buckets.objects.delete(bucket_id, key, *, user_id=None)</h3>
+  <pre><code><span class="var">ez</span>.buckets.objects.<span class="fn">delete</span>(<span class="str">"bucket-uuid"</span>, <span class="str">"alice.png"</span>)</code></pre>
+
+  <h3>buckets.objects.list(bucket_id, *, user_id=None, limit=None, cursor=None)</h3>
+  <pre><code><span class="var">result</span> = <span class="var">ez</span>.buckets.objects.<span class="fn">list</span>(<span class="str">"bucket-uuid"</span>, <span class="param">limit</span>=<span class="num">50</span>)
+<span class="cm"># result["objects"], result["next_cursor"]</span></code></pre>
+
+  <hr>
+
+  <h2>ez.storage</h2>
+
+  <h3>tables() / objects()</h3>
+  <pre><code><span class="var">table_usage</span> = <span class="var">ez</span>.storage.<span class="fn">tables</span>()
+<span class="var">object_usage</span> = <span class="var">ez</span>.storage.<span class="fn">objects</span>()
+<span class="cm"># {"used_bytes": 1048576, "limit_bytes": 104857600, "used_percent": 1.0}</span></code></pre>
+</main>
+</body>
+</html>

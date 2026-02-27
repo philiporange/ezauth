@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import BigInteger, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ezauth.db.base import Base, TimestampMixin, UUIDPrimaryKey
@@ -16,6 +16,8 @@ class Bucket(Base, UUIDPrimaryKey, TimestampMixin):
         ForeignKey("applications.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    max_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    max_size_bytes_per_user: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     objects: Mapped[list["StorageObject"]] = relationship(
         back_populates="bucket", cascade="all, delete-orphan",
