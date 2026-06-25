@@ -1,0 +1,116 @@
+{
+  "name": "ezauth",
+  "short_description": "Multi-tenant authentication service with email signup, magic link sign-in, JWT sessions, JWKS, SSO, and admin dashboard.",
+  "long_description": "EZAuth is a production-ready, multi-tenant authentication service built with FastAPI, PostgreSQL, and Redis. It provides comprehensive email-based authentication (signup with verification, magic link sign-in, password auth), RS256 JWT sessions with refresh token rotation, hashcash proof-of-work anti-abuse, rate limiting, cross-domain SSO, and a full-featured admin dashboard for managing tenants, applications, users, and email templates. The service includes SDKs for JavaScript, Python, Swift, and Kotlin, a command-line client, and comprehensive REST API. Security is built-in with token hashing, Argon2id passwords, atomic token consumption, and per-app CORS configuration.",
+  "keywords": [
+    "authentication",
+    "auth-service",
+    "multi-tenant",
+    "jwt",
+    "email-auth",
+    "magic-links",
+    "password-auth",
+    "session-management",
+    "sso",
+    "fastapi",
+    "postgresql",
+    "redis",
+    "proof-of-work",
+    "hashcash",
+    "rate-limiting",
+    "api-service",
+    "backend",
+    "oauth",
+    "jwks",
+    "cli-tool",
+    "dashboard",
+    "rest-api"
+  ],
+  "primary_language": "Python",
+  "languages": [
+    "Python",
+    "JavaScript",
+    "Kotlin",
+    "Swift",
+    "HTML",
+    "CSS",
+    "Bash"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "SQLAlchemy",
+    "Pydantic",
+    "Alembic",
+    "Jinja2",
+    "HTMX",
+    "Rollup",
+    "Chevron",
+    "Argon2",
+    "python-jose",
+    "Click",
+    "Redis",
+    "Premailer"
+  ],
+  "modules": [
+    {
+      "path": "src/ezauth/main.py",
+      "description": "FastAPI application factory with lifespan management and route registration for all API endpoints"
+    },
+    {
+      "path": "src/ezauth/config.py",
+      "description": "Pydantic settings configuration for environment variables and application settings"
+    },
+    {
+      "path": "src/ezauth/crypto.py",
+      "description": "Cryptographic utilities for token generation, SHA-256 hashing, and constant-time token comparison"
+    },
+    {
+      "path": "src/ezauth/ratelimiter.py",
+      "description": "Redis-backed rate limiter with per-IP and per-email limits supporting multi-tenant isolation"
+    },
+    {
+      "path": "src/ezauth/dependencies.py",
+      "description": "FastAPI dependency injectors for database sessions, Redis, application resolution, and session authentication"
+    },
+    {
+      "path": "src/ezauth/db/engine.py",
+      "description": "SQLAlchemy async engine configuration and database connection management"
+    },
+    {
+      "path": "src/ezauth/db/base.py",
+      "description": "SQLAlchemy declarative base model and common model utilities"
+    },
+    {
+      "path": "src/ezauth/services/auth.py",
+      "description": "Core authentication service handling signup, signin, email verification, and token management"
+    },
+    {
+      "path": "src/ezauth/services/sessions.py",
+      "description": "Session management service for JWT creation, refresh token rotation, and session revocation"
+    },
+    {
+      "path": "src/ezauth/services/mail.py",
+      "description": "Email delivery service using AWS SES with Mustache template rendering and MIME formatting"
+    },
+    {
+      "path": "src/ezauth/services/passwords.py",
+      "description": "Password hashing and verification using Argon2id with automatic parameter upgrades"
+    },
+    {
+      "path": "src/ezauth/services/hashcash.py",
+      "description": "Proof-of-work challenge generation and validation using Argon2id for signup abuse prevention"
+    },
+    {
+      "path": "src/ezauth/api/router.py",
+      "description": "Main API router mounting frontend and backend API routes at /v1 prefix"
+    },
+    {
+      "path": "src/ezauth/models/user.py",
+      "description": "User SQLAlchemy model with email, password hash, and email verification fields"
+    },
+    {
+      "path": "src/ezauth/models/application.py",
+      "description": "Application model representing tenant sub-applications with JWT configuration and key management"
+    }
+  ]
+}

@@ -79,8 +79,11 @@ async def _try_admin_jwt(db: DbSession, token: str) -> Application | None:
         return None
     if not unverified.get("admin") or "aud" not in unverified:
         return None
-    app_id = unverified["aud"]
-    result = await db.execute(select(Application).where(Application.id == uuid.UUID(app_id)))
+    try:
+        app_id = uuid.UUID(unverified["aud"])
+    except (ValueError, TypeError):
+        return None
+    result = await db.execute(select(Application).where(Application.id == app_id))
     app = result.scalars().first()
     if app is None:
         return None
@@ -172,11 +175,14 @@ async def require_session(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid session token")
 
-    return SessionData(
-        user_id=uuid.UUID(payload["sub"]),
-        session_id=uuid.UUID(payload["sid"]),
-        app_id=app.id,
-    )
+    try:
+        return SessionData(
+            user_id=uuid.UUID(payload["sub"]),
+            session_id=uuid.UUID(payload["sid"]),
+            app_id=app.id,
+        )
+    except (KeyError, ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid session token")
 
 
 SessionDep = Annotated[SessionData, Depends(require_session)]
@@ -212,7 +218,11 @@ async def resolve_app_auth(
         return AppAuth(app=app)
 
     # 1b. Admin JWT auth → admin
-    if authorization and authorization.startswith("Bearer ") and not authorization[7:].startswith("sk_"):
+    if (
+        authorization
+        and authorization.startswith("Bearer ")
+        and not authorization[7:].startswith("sk_")
+    ):
         admin_app = await _try_admin_jwt(db, authorization[7:])
         if admin_app is not None:
             return AppAuth(app=admin_app)
@@ -244,11 +254,14 @@ async def resolve_app_auth(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid session token")
 
-    return AppAuth(
-        app=app,
-        user_id=uuid.UUID(payload["sub"]),
-        session_id=uuid.UUID(payload["sid"]),
-    )
+    try:
+        return AppAuth(
+            app=app,
+            user_id=uuid.UUID(payload["sub"]),
+            session_id=uuid.UUID(payload["sid"]),
+        )
+    except (KeyError, ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid session token")
 
 
 AppAuthDep = Annotated[AppAuth, Depends(resolve_app_auth)]

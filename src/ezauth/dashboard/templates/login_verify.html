@@ -3,21 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ezAuth - Verify Code</title>
+    <title>Verify code — ezAuth</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/dashboard/static/dashboard.css">
 </head>
 <body class="login-page">
+    <canvas id="bg" aria-hidden="true"></canvas>
     <div class="login-card">
-        <h1>ezAuth</h1>
-        <p style="text-align:center;color:#666;margin-bottom:16px;">Check your email for a 6-digit code.</p>
+        <h1>Check your email</h1>
+        <p class="login-sub">If <strong>{{ email }}</strong> manages any applications, a 6-digit code is on its way.</p>
         {% if error %}<p class="error">{{ error }}</p>{% endif %}
         <form method="post" action="/dashboard/login/verify">
             <input type="hidden" name="email" value="{{ email }}">
             <label for="code">Code</label>
-            <input type="text" id="code" name="code" placeholder="123456" maxlength="6" inputmode="numeric" required autofocus>
+            <input type="text" id="code" name="code" class="code-input" placeholder="······"
+                   maxlength="6" inputmode="numeric" autocomplete="one-time-code" required autofocus>
             <button type="submit">Verify</button>
         </form>
-        <p style="text-align:center;margin-top:16px;"><a href="/dashboard/login" style="color:#3498db;">Back</a></p>
+        <p class="login-foot"><a href="/dashboard/login">Use a different email</a></p>
     </div>
+    {% include "_lattice.html" %}
 </body>
 </html>

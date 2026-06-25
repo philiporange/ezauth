@@ -1,6 +1,6 @@
 import base64
 import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -43,7 +43,7 @@ class TestBotSignup:
         _, pub_b64 = _generate_keypair()
         challenge_id = "test-challenge-123"
 
-        mock_resp = AsyncMock()
+        mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"status": "CONFIRMED", "challenge_id": challenge_id}
 
@@ -65,7 +65,7 @@ class TestBotSignup:
     async def test_signup_challenge_not_confirmed(self, db, redis, app):
         _, pub_b64 = _generate_keypair()
 
-        mock_resp = AsyncMock()
+        mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"status": "PENDING"}
 
@@ -87,7 +87,7 @@ class TestBotSignup:
         _, pub_b64_2 = _generate_keypair()
         challenge_id = "reuse-challenge-456"
 
-        mock_resp = AsyncMock()
+        mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"status": "CONFIRMED", "challenge_id": challenge_id}
 
@@ -116,7 +116,7 @@ class TestBotAuth:
         private, pub_b64 = _generate_keypair()
         challenge_id = "auth-test-challenge"
 
-        mock_resp = AsyncMock()
+        mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"status": "CONFIRMED"}
 
@@ -154,7 +154,7 @@ class TestBotAuth:
         wrong_private, _ = _generate_keypair()
         challenge_id = "wrong-key-challenge"
 
-        mock_resp = AsyncMock()
+        mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"status": "CONFIRMED"}
 
@@ -187,7 +187,7 @@ class TestBotAuth:
         private, pub_b64 = _generate_keypair()
         challenge_id = "expired-ts-challenge"
 
-        mock_resp = AsyncMock()
+        mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"status": "CONFIRMED"}
 

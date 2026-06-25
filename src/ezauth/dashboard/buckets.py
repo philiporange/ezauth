@@ -1,3 +1,8 @@
+"""Dashboard storage bucket management: list with usage, create, limits, delete.
+
+All queries are scoped to applications the logged-in owner controls.
+"""
+
 import uuid
 
 from fastapi import APIRouter, Depends, Request
@@ -6,7 +11,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ezauth.dashboard.auth import require_dashboard_auth
+from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth
+from ezauth.dashboard.scope import get_owned_app, owned_app_ids
 from ezauth.dependencies import get_db
 from ezauth.models.bucket import Bucket
 from ezauth.models.storage_object import StorageObject
@@ -16,10 +22,23 @@ templates = Jinja2Templates(directory="src/ezauth/dashboard/templates")
 
 
 def _parse_size(value: str | None) -> int | None:
-    """Parse a size string into bytes, or return None if empty."""
+    """Parse a size string into bytes, or return None if empty/invalid."""
     if not value or not value.strip():
         return None
-    return int(value.strip())
+    try:
+        return int(value.strip())
+    except ValueError:
+        return None
+
+
+async def _get_owned_bucket(
+    db: AsyncSession, auth: DashboardAuth, bucket_id: uuid.UUID
+) -> Bucket | None:
+    query = select(Bucket).where(Bucket.id == bucket_id)
+    if not auth.is_super:
+        query = query.where(Bucket.app_id.in_(owned_app_ids(auth)))
+    result = await db.execute(query)
+    return result.scalars().first()
 
 
 @router.get("", response_class=HTMLResponse)
@@ -27,27 +46,34 @@ async def list_buckets(
     request: Request,
     app_id: uuid.UUID | None = None,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_dashboard_auth),
+    auth: DashboardAuth = Depends(require_dashboard_auth),
 ):
     query = select(Bucket).order_by(Bucket.created_at.desc())
+    if not auth.is_super:
+        query = query.where(Bucket.app_id.in_(owned_app_ids(auth)))
     if app_id:
         query = query.where(Bucket.app_id == app_id)
     result = await db.execute(query)
     buckets = list(result.scalars().all())
 
-    # Get usage per bucket
-    bucket_usage = {}
-    for b in buckets:
+    bucket_usage = {b.id: 0 for b in buckets}
+    if buckets:
         usage_result = await db.execute(
-            select(func.coalesce(func.sum(StorageObject.size_bytes), 0)).where(
-                StorageObject.bucket_id == b.id
-            )
+            select(StorageObject.bucket_id, func.coalesce(func.sum(StorageObject.size_bytes), 0))
+            .where(StorageObject.bucket_id.in_(list(bucket_usage)))
+            .group_by(StorageObject.bucket_id)
         )
-        bucket_usage[b.id] = usage_result.scalar() or 0
+        bucket_usage.update(dict(usage_result.all()))
 
     return templates.TemplateResponse(
         "buckets/list.html",
-        {"request": request, "buckets": buckets, "app_id": app_id, "bucket_usage": bucket_usage},
+        {
+            "request": request,
+            "buckets": buckets,
+            "app_id": app_id,
+            "bucket_usage": bucket_usage,
+            "auth": auth,
+        },
     )
 
 
@@ -55,19 +81,28 @@ async def list_buckets(
 async def create_bucket(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_dashboard_auth),
+    auth: DashboardAuth = Depends(require_dashboard_auth),
 ):
     form = await request.form()
     app_id = form.get("app_id", "")
     name = form.get("name", "").strip()
-    max_size_bytes = _parse_size(form.get("max_size_bytes"))
-    max_size_bytes_per_user = _parse_size(form.get("max_size_bytes_per_user"))
+
+    try:
+        app_uuid = uuid.UUID(app_id)
+    except ValueError:
+        return RedirectResponse(url="/dashboard/buckets", status_code=302)
+    if not name:
+        return RedirectResponse(url=f"/dashboard/buckets?app_id={app_id}", status_code=302)
+
+    app = await get_owned_app(db, auth, app_uuid)
+    if not app:
+        return HTMLResponse("Not found", status_code=404)
 
     bucket = Bucket(
-        app_id=uuid.UUID(app_id),
+        app_id=app.id,
         name=name,
-        max_size_bytes=max_size_bytes,
-        max_size_bytes_per_user=max_size_bytes_per_user,
+        max_size_bytes=_parse_size(form.get("max_size_bytes")),
+        max_size_bytes_per_user=_parse_size(form.get("max_size_bytes_per_user")),
     )
     db.add(bucket)
     await db.flush()
@@ -79,10 +114,9 @@ async def view_bucket(
     bucket_id: uuid.UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_dashboard_auth),
+    auth: DashboardAuth = Depends(require_dashboard_auth),
 ):
-    result = await db.execute(select(Bucket).where(Bucket.id == bucket_id))
-    bucket = result.scalars().first()
+    bucket = await _get_owned_bucket(db, auth, bucket_id)
     if not bucket:
         return HTMLResponse("Not found", status_code=404)
 
@@ -102,7 +136,13 @@ async def view_bucket(
 
     return templates.TemplateResponse(
         "buckets/detail.html",
-        {"request": request, "bucket": bucket, "usage": usage, "obj_count": obj_count},
+        {
+            "request": request,
+            "bucket": bucket,
+            "usage": usage,
+            "obj_count": obj_count,
+            "auth": auth,
+        },
     )
 
 
@@ -111,10 +151,9 @@ async def update_bucket(
     bucket_id: uuid.UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_dashboard_auth),
+    auth: DashboardAuth = Depends(require_dashboard_auth),
 ):
-    result = await db.execute(select(Bucket).where(Bucket.id == bucket_id))
-    bucket = result.scalars().first()
+    bucket = await _get_owned_bucket(db, auth, bucket_id)
     if not bucket:
         return HTMLResponse("Not found", status_code=404)
 
@@ -130,10 +169,9 @@ async def delete_bucket(
     bucket_id: uuid.UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_dashboard_auth),
+    auth: DashboardAuth = Depends(require_dashboard_auth),
 ):
-    result = await db.execute(select(Bucket).where(Bucket.id == bucket_id))
-    bucket = result.scalars().first()
+    bucket = await _get_owned_bucket(db, auth, bucket_id)
     if not bucket:
         return HTMLResponse("Not found", status_code=404)
     app_id = bucket.app_id

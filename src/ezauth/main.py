@@ -1,11 +1,12 @@
 import pathlib
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
+from sqlalchemy import select
 
 from ezauth.db.engine import engine
 from ezauth.db.redis import close_redis, init_redis
@@ -57,6 +58,20 @@ def create_app() -> FastAPI:
     @app.get("/docs", include_in_schema=False)
     async def docs():
         return FileResponse(_DOCS_DIR / "index.html")
+
+    @app.get("/internal/domain-check", include_in_schema=False)
+    async def domain_check(domain: str = Query(...)):
+        """Called by Caddy on-demand TLS to verify a domain should get a cert."""
+        from ezauth.dependencies import get_db
+        from ezauth.models.domain import Domain
+
+        async for db in get_db():
+            result = await db.execute(
+                select(Domain).where(Domain.domain == domain, Domain.verified.is_(True))
+            )
+            if result.scalars().first():
+                return JSONResponse({"ok": True})
+        return JSONResponse({"error": "unknown domain"}, status_code=404)
 
     from ezauth.api.router import api_router
 

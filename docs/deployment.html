@@ -110,9 +110,28 @@ SESSION_COOKIE_SECURE=true</code></pre>
 
   <h2>5. Configure Caddy</h2>
   <p>Edit <code>/etc/caddy/Caddyfile</code>:</p>
-  <pre><code>auth.yourdomain.com {
+  <pre><code><span class="cm"># Global options: on-demand TLS for customer custom domains</span>
+{
+    on_demand_tls {
+        ask http://127.0.0.1:8001/internal/domain-check
+    }
+}
+
+<span class="cm"># Primary API domain</span>
+api.ezauth.org {
+    reverse_proxy 127.0.0.1:8001
+}
+
+<span class="cm"># Catch-all for customer custom domains (CNAME → api.ezauth.org)</span>
+https:// {
+    tls {
+        on_demand
+    }
     reverse_proxy 127.0.0.1:8001
 }</code></pre>
+  <p>When a customer sets a CNAME from their domain (e.g. <code>auth.customer.com</code>) to <code>api.ezauth.org</code>,
+  Caddy will automatically provision a TLS certificate for it via Let's Encrypt. The <code>ask</code> endpoint
+  ensures certificates are only issued for verified domains in the database.</p>
   <pre><code>sudo systemctl reload caddy</code></pre>
 
   <h2>6. Create systemd Service</h2>

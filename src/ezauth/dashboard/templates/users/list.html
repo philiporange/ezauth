@@ -1,16 +1,20 @@
 {% extends "layout.html" %}
-{% block title %}Users - ezAuth{% endblock %}
+{% block title %}Users — ezAuth{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>Users ({{ total }})</h2>
+    <div>
+        <h2>Users</h2>
+        <p class="sub">{{ total }} user{{ '' if total == 1 else 's' }}{% if app_id %} in this application{% endif %}</p>
+    </div>
 </div>
 
 <form method="get" class="search-form">
     {% if app_id %}<input type="hidden" name="app_id" value="{{ app_id }}">{% endif %}
-    <input type="text" name="search" placeholder="Search by email..." value="{{ search or '' }}">
-    <button type="submit">Search</button>
+    <input type="text" name="search" placeholder="Search by email…" value="{{ search or '' }}">
+    <button type="submit" class="btn-ghost">Search</button>
 </form>
 
+{% if users %}
 <table>
     <thead>
         <tr>
@@ -25,9 +29,9 @@
             <td>{{ u.email }}</td>
             <td>
                 {% if u.email_verified_at %}
-                <span class="badge bg-success">Yes</span>
+                <span class="badge badge-success">Verified</span>
                 {% else %}
-                <span class="badge bg-muted">No</span>
+                <span class="badge badge-muted">Pending</span>
                 {% endif %}
             </td>
             <td>{{ u.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
@@ -35,12 +39,15 @@
         {% endfor %}
     </tbody>
 </table>
+{% else %}
+<p class="empty">{% if search %}No users match “{{ search }}”.{% else %}No users yet.{% endif %}</p>
+{% endif %}
 
-{% if total > 50 %}
+{% if total > page_size %}
 <div class="pagination">
-    {% if page > 1 %}<a href="?page={{ page - 1 }}{% if app_id %}&app_id={{ app_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">Prev</a>{% endif %}
-    <span>Page {{ page }}</span>
-    {% if total > page * 50 %}<a href="?page={{ page + 1 }}{% if app_id %}&app_id={{ app_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">Next</a>{% endif %}
+    {% if page > 1 %}<a href="?page={{ page - 1 }}{% if app_id %}&app_id={{ app_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">&larr; Prev</a>{% endif %}
+    <span>Page {{ page }} of {{ ((total - 1) // page_size) + 1 }}</span>
+    {% if total > page * page_size %}<a href="?page={{ page + 1 }}{% if app_id %}&app_id={{ app_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">Next &rarr;</a>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

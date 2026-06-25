@@ -1,0 +1,36 @@
+<script>
+(() => {
+  // Triangular lattice backdrop — the ezAuth signature.
+  const c = document.getElementById("bg");
+  const ctx = c && c.getContext("2d");
+  if (!ctx) return;
+  const S = 28, TH = S * 0.866;
+  const PAL = ["rgba(224,189,204,0.4)","rgba(209,194,224,0.4)","rgba(189,204,235,0.38)","rgba(179,214,230,0.35)","rgba(194,224,214,0.32)"];
+  function tri(x, y, up) {
+    if (up) { ctx.moveTo(x, y+TH); ctx.lineTo(x+S/2, y); ctx.lineTo(x+S, y+TH); }
+    else { ctx.moveTo(x, y); ctx.lineTo(x+S, y); ctx.lineTo(x+S/2, y+TH); }
+    ctx.closePath();
+  }
+  function render() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const W = innerWidth, H = innerHeight;
+    c.width = W * dpr; c.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cols = Math.ceil(W / (S / 2)) + 4, rows = Math.ceil(H / TH) + 2;
+    ctx.strokeStyle = "rgba(0,0,0,0.04)"; ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++)
+      tri(col * (S / 2), r * TH, (r + col) % 2 === 0);
+    ctx.stroke();
+    for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
+      if (Math.random() > 0.08) continue;
+      ctx.fillStyle = PAL[Math.random() * PAL.length | 0];
+      ctx.beginPath();
+      tri(col * (S / 2), r * TH, (r + col) % 2 === 0);
+      ctx.fill();
+    }
+  }
+  render();
+  addEventListener("resize", render, { passive: true });
+})();
+</script>

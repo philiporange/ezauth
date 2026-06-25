@@ -3,20 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ezAuth — Minimalist Auth</title>
+<title>ezAuth — Auth, Database & Storage</title>
 <style>
 :root {
-  --bg: #ffffff;
   --text: #1a1a1a;
   --muted: #666666;
-  --border: #eeeeee;
   --accent: #000000;
-  --radius: 0px;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-  background: radial-gradient(120% 120% at 10% 10%, #f5f5f5 0%, #ffffff 55%, #f8f8f8 100%);
+  background: #f8f8f8;
   color: var(--text);
   line-height: 1.6;
   display: flex;
@@ -24,69 +21,81 @@ body {
   align-items: center;
   min-height: 100vh;
   padding: 2rem;
-  position: relative;
   overflow-x: hidden;
 }
-.bg-canvas {
+canvas#bg {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
   z-index: 0;
-}
-body.webgl-enabled .bg-canvas {
-  opacity: 0.35;
+  pointer-events: none;
+  display: block;
 }
 .container {
-  max-width: 640px;
+  max-width: 600px;
   width: 100%;
   position: relative;
   z-index: 1;
+  background: rgba(248, 248, 248, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 3rem;
+  border-radius: 2px;
 }
-header {
-  margin-bottom: 5rem;
-}
+header { margin-bottom: 4rem; }
 h1 {
-  font-size: 2.5rem;
+  font-size: 2.8rem;
   font-weight: 300;
   letter-spacing: -0.03em;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 .tagline {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   color: var(--muted);
   font-weight: 400;
 }
 .pricing {
-  margin-top: 1.5rem;
-  font-size: 1rem;
-  color: var(--text);
+  margin-top: 2rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
 }
-.pricing-note {
+.pricing .price {
+  font-size: 1.5rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+.pricing .price strong { font-weight: 600; }
+.pricing .note {
   margin-top: 0.35rem;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--muted);
 }
-.features {
-  margin-bottom: 5rem;
+.specs {
+  margin-bottom: 4rem;
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
 }
-.features li {
-  margin-bottom: 1.5rem;
-  font-size: 1rem;
+.specs li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.specs .label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.specs .desc {
+  font-size: 1.05rem;
   font-weight: 400;
   color: var(--text);
-  display: flex;
-  align-items: baseline;
-}
-.features li::before {
-  content: "→";
-  margin-right: 1rem;
-  color: var(--muted);
-  font-weight: 300;
 }
 .links {
   display: flex;
@@ -96,7 +105,7 @@ h1 {
 .links a {
   text-decoration: none;
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -104,184 +113,51 @@ h1 {
   transition: border-color 0.2s;
   padding-bottom: 2px;
 }
-.links a:hover {
-  border-color: var(--accent);
-}
-@media (prefers-reduced-motion: reduce) {
-  .bg-canvas { display: none; }
-}
+.links a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { canvas#bg { display: none; } }
 @media (max-width: 480px) {
-  h1 { font-size: 2rem; }
+  h1 { font-size: 2.1rem; }
   .container { padding: 1rem; }
-  header { margin-bottom: 3rem; }
-  .features { margin-bottom: 3rem; }
+  header { margin-bottom: 2.5rem; }
+  .specs { margin-bottom: 2.5rem; }
+  .pricing .price { font-size: 1.25rem; }
 }
 </style>
 </head>
 <body>
-<canvas id="bg-canvas" class="bg-canvas" aria-hidden="true"></canvas>
+<canvas id="bg" aria-hidden="true"></canvas>
 <div class="container">
   <header>
     <h1>ezAuth</h1>
-    <p class="tagline">Simple auth, user data, and storage for modern applications.</p>
-    <p class="pricing"><strong>Pricing:</strong> $1/K users/month.</p>
-    <p class="pricing-note">Custom table storage above 1GB is billed at $1/GB/month.</p>
+    <p class="tagline">Auth, database, and object storage for your cross-platform apps.</p>
+    <div class="pricing">
+      <p class="price"><strong>$1</strong> per 1,000 users / month</p>
+      <p class="note">Storage above 1 GB billed at $1/GB/month.</p>
+    </div>
   </header>
-  
-  <ul class="features">
-    <li>Simple by default: one API, one dashboard, and one clean integration path</li>
-    <li>Email/password, magic links, and 6-digit verification codes</li>
-    <li>Google and Apple OAuth, plus bot authentication (Ed25519)</li>
-    <li>Multi-tenant architecture with per-app users, keys, and domains</li>
-    <li>JWT sessions, refresh tokens, and public JWKS verification</li>
-    <li>Cross-domain SSO for seamless sign-in across related apps</li>
-    <li>Programmable custom tables for typed, user-scoped data</li>
-    <li>S3-compatible object storage with user-level isolation</li>
-    <li>Built-in anti-abuse protection: hashcash + rate limits</li>
-    <li>SDKs for JavaScript, Python, Swift, and Kotlin, plus CLI tooling</li>
+
+  <ul class="specs">
+    <li>
+      <span class="label">Authentication</span>
+      <span class="desc">Email, OAuth, magic links, and bot keys</span>
+    </li>
+    <li>
+      <span class="label">Database</span>
+      <span class="desc">User-scoped custom tables with typed columns</span>
+    </li>
+    <li>
+      <span class="label">Storage</span>
+      <span class="desc">S3-compatible object storage with per-user isolation</span>
+    </li>
   </ul>
 
   <div class="links">
     <a href="/docs/">Documentation</a>
+    <a href="/bots/">Bots</a>
     <a href="https://api.ezauth.org/docs">API Explorer</a>
     <a href="/dashboard/">Dashboard</a>
-    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
   </div>
 </div>
-<script>
-(() => {
-  const canvas = document.getElementById("bg-canvas");
-  if (!canvas) return;
-
-  const prefersReducedMotion =
-    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (prefersReducedMotion) return;
-
-  const gl = canvas.getContext("webgl", {
-    alpha: true,
-    antialias: false,
-    depth: false,
-    stencil: false,
-    powerPreference: "low-power",
-    preserveDrawingBuffer: false
-  });
-  if (!gl) return;
-
-  const vertexSource = `
-    attribute vec2 a_position;
-    void main() {
-      gl_Position = vec4(a_position, 0.0, 1.0);
-    }
-  `;
-
-  const fragmentSource = `
-    precision mediump float;
-    uniform vec2 u_resolution;
-    uniform float u_time;
-
-    void main() {
-      vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-      vec2 p = uv - 0.5;
-      p.x *= u_resolution.x / u_resolution.y;
-
-      float t = u_time * 0.14;
-      float ripple = sin((p.x * 7.0) + t) * cos((p.y * 7.0) - t) * 0.03;
-      float halo = smoothstep(0.65, 0.08, length(p + vec2(0.0, ripple)));
-      float grain = sin((uv.x + uv.y + t) * 40.0) * 0.0015;
-
-      float shade = 1.0 - (halo * 0.045) + grain;
-      gl_FragColor = vec4(vec3(shade), 1.0);
-    }
-  `;
-
-  const compileShader = (type, source) => {
-    const shader = gl.createShader(type);
-    if (!shader) return null;
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) return shader;
-    gl.deleteShader(shader);
-    return null;
-  };
-
-  const vertexShader = compileShader(gl.VERTEX_SHADER, vertexSource);
-  const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentSource);
-  if (!vertexShader || !fragmentShader) return;
-
-  const program = gl.createProgram();
-  if (!program) return;
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
-  gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
-  gl.deleteShader(vertexShader);
-  gl.deleteShader(fragmentShader);
-
-  const buffer = gl.createBuffer();
-  if (!buffer) return;
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-
-  const positionLoc = gl.getAttribLocation(program, "a_position");
-  const resolutionLoc = gl.getUniformLocation(program, "u_resolution");
-  const timeLoc = gl.getUniformLocation(program, "u_time");
-  if (positionLoc < 0 || !resolutionLoc || !timeLoc) return;
-
-  document.body.classList.add("webgl-enabled");
-
-  const resize = () => {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const width = Math.floor(window.innerWidth * dpr);
-    const height = Math.floor(window.innerHeight * dpr);
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
-    }
-    gl.viewport(0, 0, width, height);
-  };
-
-  let rafId = 0;
-  let start = performance.now();
-
-  const render = (now) => {
-    const elapsed = (now - start) / 1000;
-    gl.clearColor(1, 1, 1, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.useProgram(program);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.enableVertexAttribArray(positionLoc);
-    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
-    gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
-    gl.uniform1f(timeLoc, elapsed);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    rafId = window.requestAnimationFrame(render);
-  };
-
-  const onVisibilityChange = () => {
-    if (document.hidden) {
-      if (rafId) {
-        window.cancelAnimationFrame(rafId);
-        rafId = 0;
-      }
-      return;
-    }
-    if (!rafId) {
-      start = performance.now();
-      rafId = window.requestAnimationFrame(render);
-    }
-  };
-
-  canvas.addEventListener("webglcontextlost", (event) => {
-    event.preventDefault();
-    if (rafId) window.cancelAnimationFrame(rafId);
-    document.body.classList.remove("webgl-enabled");
-  });
-
-  window.addEventListener("resize", resize, { passive: true });
-  document.addEventListener("visibilitychange", onVisibilityChange);
-  resize();
-  rafId = window.requestAnimationFrame(render);
-})();
-</script>
+<script src="/isolife.js"></script>
 </body>
 </html>

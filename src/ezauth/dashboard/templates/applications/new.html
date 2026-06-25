@@ -1,29 +1,56 @@
 {% extends "layout.html" %}
-{% block title %}New Application - ezAuth{% endblock %}
+{% block title %}New application — ezAuth{% endblock %}
 {% block content %}
-<h2>Create Application</h2>
-<form method="post" action="/dashboard/applications">
-    <label for="tenant_id">Tenant</label>
-    <select id="tenant_id" name="tenant_id" required>
-        {% for t in tenants %}
-        <option value="{{ t.id }}">{{ t.name }}</option>
-        {% endfor %}
-    </select>
-    <label for="name">Name</label>
-    <input type="text" id="name" name="name" required>
-    <label for="environment">Environment</label>
-    <select id="environment" name="environment">
-        <option value="dev">Development</option>
-        <option value="prod">Production</option>
-    </select>
-    <label for="primary_domain">Primary Domain (optional)</label>
-    <input type="text" id="primary_domain" name="primary_domain">
-    <label for="email_from_name">Email From Name (optional)</label>
-    <input type="text" id="email_from_name" name="email_from_name">
-    <label for="email_from_address">Email From Address (optional)</label>
-    <input type="email" id="email_from_address" name="email_from_address">
-    <label for="owner_email">Owner Email (optional)</label>
-    <input type="email" id="owner_email" name="owner_email" placeholder="admin@example.com">
-    <button type="submit">Create</button>
+<a href="/dashboard/applications" class="back-link">&larr; Applications</a>
+<div class="page-header">
+    <h2>New application</h2>
+</div>
+
+{% if tenants %}
+<form method="post" action="/dashboard/applications" style="max-width:720px">
+    <div class="form-grid">
+        <div class="field">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" placeholder="My App" required>
+        </div>
+        <div class="field">
+            <label for="tenant_id">Tenant</label>
+            <select id="tenant_id" name="tenant_id" required>
+                {% for t in tenants %}
+                <option value="{{ t.id }}" {% if tenant_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Environment</label>
+            <div class="segmented">
+                <label><input type="radio" name="environment" value="dev" checked><span>Dev</span></label>
+                <label><input type="radio" name="environment" value="prod"><span>Prod</span></label>
+            </div>
+        </div>
+        <div class="field">
+            <label for="primary_domain">Primary domain <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
+            <input type="text" id="primary_domain" name="primary_domain" placeholder="app.example.com">
+        </div>
+        <div class="field">
+            <label for="email_from_name">Email sender name <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
+            <input type="text" id="email_from_name" name="email_from_name" placeholder="My App">
+        </div>
+        <div class="field">
+            <label for="email_from_address">Email sender address <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
+            <input type="email" id="email_from_address" name="email_from_address" placeholder="no-reply@example.com">
+        </div>
+        <div class="field full">
+            <label for="owner_email">Owner email</label>
+            <input type="email" id="owner_email" name="owner_email" value="{{ auth.email }}">
+            <p class="hint">This address can sign in to the dashboard and the admin API for this application.</p>
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="submit">Create application</button>
+    </div>
 </form>
+{% else %}
+<p class="empty">You need a tenant first. <a href="/dashboard/tenants">Create one here.</a></p>
+{% endif %}
 {% endblock %}

@@ -1,9 +1,12 @@
 {% extends "layout.html" %}
-{% block title %}Edit {{ name }} - ezAuth{% endblock %}
+{% block title %}Edit {{ name }} — ezAuth{% endblock %}
 {% block content %}
-<h2>Edit: {{ name }}</h2>
+<a href="/dashboard/email-templates" class="back-link">&larr; Email templates</a>
+<div class="page-header">
+    <h2 class="mono" style="font-size:26px">{{ name }}</h2>
+</div>
 <form hx-post="/dashboard/email-templates/{{ name }}" hx-target="#save-status" hx-swap="innerHTML">
-    <textarea name="content" rows="25" class="code-editor">{{ content }}</textarea>
+    <textarea name="content" rows="25" class="code-editor" spellcheck="false">{{ content }}</textarea>
     <div class="form-actions">
         <button type="submit">Save</button>
         <span id="save-status"></span>

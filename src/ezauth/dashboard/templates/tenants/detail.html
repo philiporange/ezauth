@@ -1,10 +1,60 @@
 {% extends "layout.html" %}
-{% block title %}{{ tenant.name }} - ezAuth{% endblock %}
+{% block title %}{{ tenant.name }} — ezAuth{% endblock %}
 {% block content %}
-<h2>{{ tenant.name }}</h2>
-<dl>
-    <dt>ID</dt><dd class="mono">{{ tenant.id }}</dd>
-    <dt>Created</dt><dd>{{ tenant.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
-</dl>
-<a href="/dashboard/applications?tenant_id={{ tenant.id }}" class="btn">View Applications</a>
+<a href="/dashboard/tenants" class="back-link">&larr; Tenants</a>
+<div class="page-header">
+    <div>
+        <h2>{{ tenant.name }}</h2>
+        <p class="sub mono">{{ tenant.id }}</p>
+    </div>
+    <a href="/dashboard/applications/new?tenant_id={{ tenant.id }}" class="btn">New application</a>
+</div>
+
+<section>
+    <h3>Applications</h3>
+    {% if apps %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Environment</th>
+                <th>Users</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for app in apps %}
+            <tr>
+                <td><a href="/dashboard/applications/{{ app.id }}">{{ app.name }}</a></td>
+                <td><span class="badge badge-{{ app.environment.value }}">{{ app.environment.value }}</span></td>
+                <td>{{ user_counts.get(app.id, 0) }}</td>
+                <td>{{ app.created_at.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No applications in this tenant yet.</p>
+    {% endif %}
+</section>
+
+<section>
+    <h3>Settings</h3>
+    <form method="post" action="/dashboard/tenants/{{ tenant.id }}" style="max-width:420px">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" value="{{ tenant.name }}" required>
+        <div class="form-actions">
+            <button type="submit">Save</button>
+        </div>
+    </form>
+</section>
+
+<div class="danger-zone">
+    <h3>Danger zone</h3>
+    <p>Deleting a tenant permanently removes all of its applications, users, sessions and stored objects.</p>
+    <form method="post" action="/dashboard/tenants/{{ tenant.id }}/delete"
+          onsubmit="return confirm('Delete tenant {{ tenant.name }} and everything in it?')">
+        <button type="submit" class="btn-danger">Delete tenant</button>
+    </form>
+</div>
 {% endblock %}

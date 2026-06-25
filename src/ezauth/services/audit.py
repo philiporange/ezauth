@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 from typing import Any
 
@@ -19,7 +18,7 @@ async def log_event(
     user_agent: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> None:
-    """Write an audit log entry. Designed to be called via fire-and-forget."""
+    """Write an audit log entry. Failures are logged, never raised."""
     try:
         entry = AuditLog(
             app_id=app_id,
@@ -34,11 +33,3 @@ async def log_event(
         await db.flush()
     except Exception:
         logger.exception(f"Failed to write audit log: {event_type}")
-
-
-def fire_and_forget_audit(
-    db: AsyncSession,
-    **kwargs,
-) -> None:
-    """Schedule an audit log write as a background task."""
-    asyncio.create_task(log_event(db, **kwargs))

@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block title %}Overview — ezAuth{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Overview</h2>
+        <p class="sub">Everything across your tenants at a glance.</p>
+    </div>
+    <a href="/dashboard/applications/new" class="btn">New application</a>
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">Tenants</div>
+        <div class="value">{{ tenant_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Applications</div>
+        <div class="value">{{ apps | length }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Users</div>
+        <div class="value">{{ user_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Storage</div>
+        <div class="value">{{ storage_bytes | filesizeformat }}</div>
+    </div>
+</div>
+
+<section>
+    <h3>Applications</h3>
+    {% if apps %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Environment</th>
+                <th>Publishable key</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for app in apps %}
+            <tr>
+                <td><a href="/dashboard/applications/{{ app.id }}">{{ app.name }}</a></td>
+                <td><span class="badge badge-{{ app.environment.value }}">{{ app.environment.value }}</span></td>
+                <td>
+                    <span class="key-chip">
+                        <span class="key-text">{{ app.publishable_key }}</span>
+                        <button type="button" class="copy-btn" data-copy="{{ app.publishable_key }}">Copy</button>
+                    </span>
+                </td>
+                <td>{{ app.created_at.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No applications yet. Create a tenant, then add your first application.</p>
+    {% endif %}
+</section>
+{% endblock %}

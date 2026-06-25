@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ezAuth — Bot Authentication</title>
+<style>
+:root {
+  --text: #1a1a1a;
+  --muted: #666666;
+  --accent: #000000;
+  --border: #e0e0e0;
+  --code-bg: rgba(245, 245, 245, 0.85);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  background: #f8f8f8;
+  color: var(--text);
+  line-height: 1.7;
+  padding: 3rem 2rem 6rem;
+}
+canvas#bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+.page {
+  max-width: 680px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+a { color: var(--text); }
+a:hover { color: var(--muted); }
+.back {
+  display: inline-block;
+  margin-bottom: 3rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  color: var(--muted);
+  transition: color 0.2s;
+}
+.back:hover { color: var(--text); }
+h1 {
+  font-size: 2.4rem;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.75rem;
+}
+.subtitle {
+  font-size: 1.1rem;
+  color: var(--muted);
+  margin-bottom: 3rem;
+}
+h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 3.5rem;
+  margin-bottom: 1rem;
+  color: var(--muted);
+}
+h2:first-of-type { margin-top: 0; }
+p { margin-bottom: 1rem; }
+p + pre { margin-top: -0.25rem; }
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+}
+code {
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 0.15em 0.4em;
+}
+pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+.note {
+  border-left: 3px solid var(--border);
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1.5rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+}
+.tab {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  background: var(--code-bg);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tab.active {
+  background: #fff;
+  color: var(--text);
+}
+.tab:first-child { border-right: none; }
+.tab-content {
+  display: none;
+  border: 1px solid var(--border);
+  border-top: none;
+}
+.tab-content.active { display: block; }
+.tab-content pre {
+  margin: 0;
+  border: none;
+}
+.tabgroup { margin-bottom: 1.5rem; }
+.endpoint {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.method {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  background: var(--text);
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+.path {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+}
+ol, ul {
+  margin-bottom: 1.5rem;
+  padding-left: 1.5rem;
+}
+li { margin-bottom: 0.4rem; }
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 3rem 0;
+}
+@media (max-width: 480px) {
+  body { padding: 2rem 1.25rem 4rem; }
+  h1 { font-size: 1.8rem; }
+  pre { padding: 1rem; font-size: 0.78rem; }
+}
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="page">
+  <a href="/" class="back">&larr; ezAuth</a>
+
+  <h1>Bot Authentication</h1>
+  <p class="subtitle">Deploy automated services that authenticate with Ed25519 signatures, store data in custom tables, and manage files through object storage &mdash; all at $1 per 1,000 users/month.</p>
+
+  <h2>How it works</h2>
+  <p>Bots authenticate using Ed25519 key pairs instead of email and password. Your bot generates a key pair, registers its public key once, then signs a timestamp-based message on each auth request. No passwords, no cookies, no browser required.</p>
+  <ol>
+    <li>Generate an Ed25519 key pair</li>
+    <li>Obtain and confirm a challenge via the <a href="https://confirmations.info">confirmations API</a></li>
+    <li>Register the bot with its public key and confirmed challenge</li>
+    <li>Authenticate by signing a message &mdash; get back a JWT session</li>
+    <li>Use the session to read/write tables and objects like any user</li>
+  </ol>
+
+  <h2>1. Generate a key pair</h2>
+
+  <div class="tabgroup">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(this, 'keygen-py')">Python</div>
+      <div class="tab" onclick="switchTab(this, 'keygen-js')">JavaScript</div>
+    </div>
+    <div id="keygen-py" class="tab-content active">
+<pre><code>from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+import base64
+
+private_key = Ed25519PrivateKey.generate()
+pub_bytes = private_key.public_key().public_bytes_raw()
+public_key_b64 = base64.b64encode(pub_bytes).decode()
+
+print(f"Public key: {public_key_b64}")
+# Save the private key securely &mdash; you'll need it to authenticate</code></pre>
+    </div>
+    <div id="keygen-js" class="tab-content">
+<pre><code>import nacl from "tweetnacl";
+
+const keyPair = nacl.sign.keyPair();
+const publicKeyB64 = Buffer.from(keyPair.publicKey).toString("base64");
+
+console.log(`Public key: ${publicKeyB64}`);
+// Save keyPair.secretKey securely</code></pre>
+    </div>
+  </div>
+
+  <h2>2. Register the bot</h2>
+  <p>First, obtain a confirmed challenge from the <a href="https://confirmations.info">confirmations API</a>. Then register your bot's public key.</p>
+
+  <div class="endpoint">
+    <span class="method">POST</span>
+    <span class="path">/v1/bot/signup</span>
+  </div>
+
+  <div class="tabgroup">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(this, 'signup-py')">Python</div>
+      <div class="tab" onclick="switchTab(this, 'signup-js')">JavaScript</div>
+      <div class="tab" onclick="switchTab(this, 'signup-curl')">curl</div>
+    </div>
+    <div id="signup-py" class="tab-content active">
+<pre><code>import httpx
+
+resp = httpx.post(
+    "https://api.ezauth.org/v1/bot/signup",
+    headers={"X-Publishable-Key": "pk_..."},
+    json={
+        "challenge_id": challenge_id,
+        "public_key": public_key_b64,
+    },
+)
+bot_id = resp.json()["bot_id"]
+print(f"Bot registered: {bot_id}")</code></pre>
+    </div>
+    <div id="signup-js" class="tab-content">
+<pre><code>const resp = await fetch("https://api.ezauth.org/v1/bot/signup", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-Publishable-Key": "pk_...",
+  },
+  body: JSON.stringify({
+    challenge_id: challengeId,
+    public_key: publicKeyB64,
+  }),
+});
+const { bot_id } = await resp.json();
+console.log(`Bot registered: ${bot_id}`);</code></pre>
+    </div>
+    <div id="signup-curl" class="tab-content">
+<pre><code>curl -X POST https://api.ezauth.org/v1/bot/signup \
+  -H "Content-Type: application/json" \
+  -H "X-Publishable-Key: pk_..." \
+  -d '{
+    "challenge_id": "chal_abc123",
+    "public_key": "BASE64_ED25519_PUBLIC_KEY"
+  }'
+
+# {"bot_id": "uuid-...", "public_key": "..."}</code></pre>
+    </div>
+  </div>
+
+  <h2>3. Authenticate</h2>
+  <p>Sign a message containing your app ID, bot ID, and the current Unix timestamp. The server verifies the signature against your stored public key and returns a JWT session.</p>
+
+  <div class="endpoint">
+    <span class="method">POST</span>
+    <span class="path">/v1/bot/auth</span>
+  </div>
+
+  <div class="tabgroup">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(this, 'auth-py')">Python</div>
+      <div class="tab" onclick="switchTab(this, 'auth-js')">JavaScript</div>
+      <div class="tab" onclick="switchTab(this, 'auth-curl')">curl</div>
+    </div>
+    <div id="auth-py" class="tab-content active">
+<pre><code>import time, base64
+
+app_id = "your-app-uuid"
+timestamp = int(time.time())
+message = f"ezauth:bot_auth:{app_id}:{bot_id}:{timestamp}"
+
+signature = private_key.sign(message.encode())
+signature_b64 = base64.b64encode(signature).decode()
+
+resp = httpx.post(
+    "https://api.ezauth.org/v1/bot/auth",
+    headers={"X-Publishable-Key": "pk_..."},
+    json={
+        "bot_id": bot_id,
+        "timestamp": timestamp,
+        "signature": signature_b64,
+    },
+)
+session = resp.json()
+access_token = session["access_token"]
+refresh_token = session["refresh_token"]</code></pre>
+    </div>
+    <div id="auth-js" class="tab-content">
+<pre><code>import nacl from "tweetnacl";
+
+const appId = "your-app-uuid";
+const timestamp = Math.floor(Date.now() / 1000);
+const message = `ezauth:bot_auth:${appId}:${botId}:${timestamp}`;
+const msgBytes = new TextEncoder().encode(message);
+
+const signature = nacl.sign.detached(msgBytes, keyPair.secretKey);
+const signatureB64 = Buffer.from(signature).toString("base64");
+
+const resp = await fetch("https://api.ezauth.org/v1/bot/auth", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-Publishable-Key": "pk_...",
+  },
+  body: JSON.stringify({
+    bot_id: botId,
+    timestamp,
+    signature: signatureB64,
+  }),
+});
+const { access_token, refresh_token } = await resp.json();</code></pre>
+    </div>
+    <div id="auth-curl" class="tab-content">
+<pre><code># Sign the message externally, then:
+curl -X POST https://api.ezauth.org/v1/bot/auth \
+  -H "Content-Type: application/json" \
+  -H "X-Publishable-Key: pk_..." \
+  -d '{
+    "bot_id": "uuid-...",
+    "timestamp": 1709000000,
+    "signature": "BASE64_ED25519_SIGNATURE"
+  }'
+
+# {"access_token": "eyJ...", "refresh_token": "...",
+#  "user_id": "...", "session_id": "..."}</code></pre>
+    </div>
+  </div>
+
+  <div class="note">
+    The access token is a standard RS256 JWT valid for 15 minutes. Use the refresh token to obtain new access tokens without re-signing. Timestamps must be within 5 minutes of server time.
+  </div>
+
+  <h2>4. Store data</h2>
+  <p>Once authenticated, bots can read and write to custom tables and object storage using the session token &mdash; exactly like a regular user.</p>
+
+  <div class="tabgroup">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(this, 'data-py')">Python</div>
+      <div class="tab" onclick="switchTab(this, 'data-js')">JavaScript</div>
+    </div>
+    <div id="data-py" class="tab-content active">
+<pre><code>headers = {
+    "Authorization": f"Bearer {access_token}",
+    "X-Publishable-Key": "pk_...",
+}
+
+# Write a row to a custom table
+httpx.post(
+    "https://api.ezauth.org/v1/tables/my-table/rows",
+    headers=headers,
+    json={"values": {"status": "running", "score": 42}},
+)
+
+# Upload a file to object storage
+httpx.put(
+    "https://api.ezauth.org/v1/buckets/my-bucket/objects/report.json",
+    headers={**headers, "Content-Type": "application/json"},
+    content=json.dumps({"results": [1, 2, 3]}),
+)
+
+# Read it back
+data = httpx.get(
+    "https://api.ezauth.org/v1/buckets/my-bucket/objects/report.json",
+    headers=headers,
+)</code></pre>
+    </div>
+    <div id="data-js" class="tab-content">
+<pre><code>const headers = {
+  Authorization: `Bearer ${access_token}`,
+  "X-Publishable-Key": "pk_...",
+};
+
+// Write a row to a custom table
+await fetch("https://api.ezauth.org/v1/tables/my-table/rows", {
+  method: "POST",
+  headers: { ...headers, "Content-Type": "application/json" },
+  body: JSON.stringify({ values: { status: "running", score: 42 } }),
+});
+
+// Upload a file to object storage
+await fetch("https://api.ezauth.org/v1/buckets/my-bucket/objects/report.json", {
+  method: "PUT",
+  headers: { ...headers, "Content-Type": "application/json" },
+  body: JSON.stringify({ results: [1, 2, 3] }),
+});
+
+// Read it back
+const data = await fetch(
+  "https://api.ezauth.org/v1/buckets/my-bucket/objects/report.json",
+  { headers }
+);</code></pre>
+    </div>
+  </div>
+
+  <h2>5. Full example</h2>
+  <p>A complete bot that registers, authenticates, and stores data:</p>
+
+  <div class="tabgroup">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(this, 'full-py')">Python</div>
+      <div class="tab" onclick="switchTab(this, 'full-js')">JavaScript</div>
+    </div>
+    <div id="full-py" class="tab-content active">
+<pre><code>import base64, time, json, httpx
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+API = "https://api.ezauth.org"
+APP_ID = "your-app-uuid"
+PK = "pk_..."
+
+# Generate keys (do this once, save the private key)
+private_key = Ed25519PrivateKey.generate()
+public_key_b64 = base64.b64encode(
+    private_key.public_key().public_bytes_raw()
+).decode()
+
+# Register (one-time setup)
+signup = httpx.post(f"{API}/v1/bot/signup", headers={"X-Publishable-Key": PK}, json={
+    "challenge_id": "confirmed-challenge-id",
+    "public_key": public_key_b64,
+}).json()
+bot_id = signup["bot_id"]
+
+# Authenticate (repeat when token expires)
+ts = int(time.time())
+msg = f"ezauth:bot_auth:{APP_ID}:{bot_id}:{ts}"
+sig = base64.b64encode(private_key.sign(msg.encode())).decode()
+
+session = httpx.post(f"{API}/v1/bot/auth", headers={"X-Publishable-Key": PK}, json={
+    "bot_id": bot_id, "timestamp": ts, "signature": sig,
+}).json()
+
+# Use the session
+h = {"Authorization": f"Bearer {session['access_token']}", "X-Publishable-Key": PK}
+
+# Insert a row
+httpx.post(f"{API}/v1/tables/metrics/rows", headers=h, json={
+    "values": {"event": "deploy", "version": "1.0.3"}
+})
+
+# Upload a file
+httpx.put(
+    f"{API}/v1/buckets/artifacts/objects/build.tar.gz",
+    headers={**h, "Content-Type": "application/gzip"},
+    content=open("build.tar.gz", "rb").read(),
+)</code></pre>
+    </div>
+    <div id="full-js" class="tab-content">
+<pre><code>import nacl from "tweetnacl";
+
+const API = "https://api.ezauth.org";
+const APP_ID = "your-app-uuid";
+const PK = "pk_...";
+
+// Generate keys (do this once, save the secret key)
+const keyPair = nacl.sign.keyPair();
+const publicKeyB64 = Buffer.from(keyPair.publicKey).toString("base64");
+
+// Register (one-time setup)
+const signup = await fetch(`${API}/v1/bot/signup`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "X-Publishable-Key": PK },
+  body: JSON.stringify({
+    challenge_id: "confirmed-challenge-id",
+    public_key: publicKeyB64,
+  }),
+}).then((r) => r.json());
+const botId = signup.bot_id;
+
+// Authenticate (repeat when token expires)
+const ts = Math.floor(Date.now() / 1000);
+const msg = `ezauth:bot_auth:${APP_ID}:${botId}:${ts}`;
+const sig = nacl.sign.detached(new TextEncoder().encode(msg), keyPair.secretKey);
+const sigB64 = Buffer.from(sig).toString("base64");
+
+const session = await fetch(`${API}/v1/bot/auth`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "X-Publishable-Key": PK },
+  body: JSON.stringify({ bot_id: botId, timestamp: ts, signature: sigB64 }),
+}).then((r) => r.json());
+
+// Use the session
+const h = {
+  Authorization: `Bearer ${session.access_token}`,
+  "X-Publishable-Key": PK,
+};
+
+// Insert a row
+await fetch(`${API}/v1/tables/metrics/rows`, {
+  method: "POST",
+  headers: { ...h, "Content-Type": "application/json" },
+  body: JSON.stringify({ values: { event: "deploy", version: "1.0.3" } }),
+});
+
+// Upload a file
+await fetch(`${API}/v1/buckets/artifacts/objects/build.tar.gz`, {
+  method: "PUT",
+  headers: { ...h, "Content-Type": "application/gzip" },
+  body: await Bun.file("build.tar.gz").arrayBuffer(),
+});</code></pre>
+    </div>
+  </div>
+
+  <hr>
+
+  <h2>Reference</h2>
+
+  <p><strong>Signature message format:</strong></p>
+  <pre><code>ezauth:bot_auth:{app_id}:{bot_id}:{unix_timestamp}</code></pre>
+
+  <p><strong>Endpoints:</strong></p>
+  <pre><code>POST /v1/bot/signup     Register a new bot (publishable key)
+POST /v1/bot/auth       Authenticate and get a session (publishable key)
+POST /v1/token/refresh  Refresh an expired access token
+GET  /v1/tables         List custom tables (session)
+POST /v1/tables/{id}/rows          Insert a row (session)
+GET  /v1/tables/{id}/rows          Query rows (session)
+PUT  /v1/buckets/{id}/objects/{k}  Upload an object (session)
+GET  /v1/buckets/{id}/objects/{k}  Download an object (session)</code></pre>
+
+  <p><strong>Limits:</strong></p>
+  <ul>
+    <li>Signup: 10 requests/minute per IP</li>
+    <li>Auth: 10 requests/minute per IP</li>
+    <li>Timestamp tolerance: 5 minutes</li>
+    <li>Access token lifetime: 15 minutes</li>
+    <li>Refresh token lifetime: 30 days</li>
+    <li>Object size limit: 50 MB per upload</li>
+  </ul>
+
+  <div class="note">
+    Bots are first-class users. They count toward your $1/1K users/month plan and have the same table and storage access as any authenticated user.
+  </div>
+
+  <div style="margin-top: 3rem;">
+    <a href="/docs/" class="back">Documentation &rarr;</a>
+  </div>
+</div>
+
+<script>
+function switchTab(el, id) {
+  const group = el.closest(".tabgroup");
+  group.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  group.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById(id).classList.add("active");
+}
+(() => {
+  const c = document.getElementById("bg");
+  if (!c) return;
+  const ctx = c.getContext("2d");
+  if (!ctx) return;
+  const S = 28, TH = S * 0.866;
+  const PAL = ["rgba(224,189,204,0.4)","rgba(209,194,224,0.4)","rgba(189,204,235,0.38)","rgba(179,214,230,0.35)","rgba(194,224,214,0.32)"];
+  function render() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const W = innerWidth, H = innerHeight;
+    c.width = W * dpr; c.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cols = Math.ceil(W / (S / 2)) + 4, rows = Math.ceil(H / TH) + 2;
+    ctx.strokeStyle = "rgba(0,0,0,0.04)"; ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
+      const up = (r + col) % 2 === 0, x = col * (S / 2), y = r * TH;
+      if (up) { ctx.moveTo(x, y+TH); ctx.lineTo(x+S/2, y); ctx.lineTo(x+S, y+TH); }
+      else { ctx.moveTo(x, y); ctx.lineTo(x+S, y); ctx.lineTo(x+S/2, y+TH); }
+      ctx.closePath();
+    }
+    ctx.stroke();
+    for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
+      if (Math.random() > 0.08) continue;
+      const up = (r + col) % 2 === 0, x = col * (S / 2), y = r * TH;
+      ctx.fillStyle = PAL[Math.random() * PAL.length | 0];
+      ctx.beginPath();
+      if (up) { ctx.moveTo(x, y+TH); ctx.lineTo(x+S/2, y); ctx.lineTo(x+S, y+TH); }
+      else { ctx.moveTo(x, y); ctx.lineTo(x+S, y); ctx.lineTo(x+S/2, y+TH); }
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  render();
+  addEventListener("resize", render, { passive: true });
+})();
+</script>
+</body>
+</html>

@@ -1,35 +1,52 @@
 {% extends "layout.html" %}
-{% block title %}{{ bucket.name }} - ezAuth{% endblock %}
+{% block title %}{{ bucket.name }} — ezAuth{% endblock %}
 {% block content %}
-<h2>{{ bucket.name }}</h2>
-<dl>
-    <dt>ID</dt><dd class="mono">{{ bucket.id }}</dd>
-    <dt>App ID</dt><dd class="mono">{{ bucket.app_id }}</dd>
-    <dt>Objects</dt><dd>{{ obj_count }}</dd>
-    <dt>Usage</dt><dd>{{ usage | filesizeformat }}</dd>
-    <dt>Created</dt><dd>{{ bucket.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
-</dl>
-
-<h3 style="margin-top: 24px;">Size Limits</h3>
-<form method="post" action="/dashboard/buckets/{{ bucket.id }}" class="limits-form">
-    <label>Bucket Limit (bytes)</label>
-    <input type="number" name="max_size_bytes" value="{{ bucket.max_size_bytes or '' }}" placeholder="Unlimited (no limit)" min="1">
-    <p class="hint">Maximum total storage for this bucket across all users. Leave empty for unlimited.</p>
-
-    <label>Per-User Limit (bytes)</label>
-    <input type="number" name="max_size_bytes_per_user" value="{{ bucket.max_size_bytes_per_user or '' }}" placeholder="Unlimited (no limit)" min="1">
-    <p class="hint">Maximum storage each user can consume in this bucket. Leave empty for unlimited.</p>
-
-    <div class="form-actions">
-        <button type="submit">Save Limits</button>
+<a href="/dashboard/buckets?app_id={{ bucket.app_id }}" class="back-link">&larr; Storage</a>
+<div class="page-header">
+    <div>
+        <h2 class="mono" style="font-size:26px">{{ bucket.name }}</h2>
+        <p class="sub mono">{{ bucket.id }}</p>
     </div>
-</form>
+</div>
 
-<div class="actions" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee;">
-    <a href="/dashboard/buckets?app_id={{ bucket.app_id }}" class="btn" style="background: #6c757d;">Back to Buckets</a>
-    <form method="post" action="/dashboard/buckets/{{ bucket.id }}/delete" style="display:inline"
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">Objects</div>
+        <div class="value">{{ obj_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Usage</div>
+        <div class="value">{{ usage | filesizeformat }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Created</div>
+        <div class="value" style="font-size:22px;padding-top:12px">{{ bucket.created_at.strftime('%Y-%m-%d') }}</div>
+    </div>
+</div>
+
+<section>
+    <h3>Size limits</h3>
+    <form method="post" action="/dashboard/buckets/{{ bucket.id }}" style="max-width:420px">
+        <label for="max_size_bytes">Bucket limit (bytes)</label>
+        <input type="number" id="max_size_bytes" name="max_size_bytes" value="{{ bucket.max_size_bytes or '' }}" placeholder="Unlimited" min="1">
+        <p class="hint">Maximum total storage for this bucket across all users. Leave empty for unlimited.</p>
+
+        <label for="max_size_bytes_per_user">Per-user limit (bytes)</label>
+        <input type="number" id="max_size_bytes_per_user" name="max_size_bytes_per_user" value="{{ bucket.max_size_bytes_per_user or '' }}" placeholder="Unlimited" min="1">
+        <p class="hint">Maximum storage each user can consume in this bucket. Leave empty for unlimited.</p>
+
+        <div class="form-actions">
+            <button type="submit">Save limits</button>
+        </div>
+    </form>
+</section>
+
+<div class="danger-zone">
+    <h3>Danger zone</h3>
+    <p>Deleting a bucket permanently removes all of its objects.</p>
+    <form method="post" action="/dashboard/buckets/{{ bucket.id }}/delete"
           onsubmit="return confirm('Delete this bucket and all its objects?')">
-        <button type="submit" style="background: #dc3545;">Delete Bucket</button>
+        <button type="submit" class="btn-danger">Delete bucket</button>
     </form>
 </div>
 {% endblock %}

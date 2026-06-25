@@ -4,22 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ezAuth{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/dashboard/static/dashboard.css">
     <script src="/dashboard/static/htmx.min.js"></script>
 </head>
 <body>
-    <nav class="sidebar">
-        <div class="sidebar-brand">ezAuth</div>
-        <a href="/dashboard/tenants">Tenants</a>
-        <a href="/dashboard/applications">Applications</a>
-        <a href="/dashboard/domains">Domains</a>
-        <a href="/dashboard/users">Users</a>
-        <a href="/dashboard/buckets">Storage</a>
-        <a href="/dashboard/email-templates">Email Templates</a>
-        <a href="/dashboard/logout" class="logout">Logout</a>
-    </nav>
+    <canvas id="bg" aria-hidden="true"></canvas>
+    {% set path = request.url.path %}
+    <aside class="sidebar">
+        <div class="sidebar-brand"><a href="/dashboard/">ezauth<span class="tld">.org</span></a></div>
+        <nav>
+            <a href="/dashboard/" {% if path == '/dashboard/' %}class="active"{% endif %}>Overview</a>
+            <a href="/dashboard/tenants" {% if path.startswith('/dashboard/tenants') %}class="active"{% endif %}>Tenants</a>
+            <a href="/dashboard/applications" {% if path.startswith('/dashboard/applications') %}class="active"{% endif %}>Applications</a>
+            <a href="/dashboard/domains" {% if path.startswith('/dashboard/domains') %}class="active"{% endif %}>Domains</a>
+            <a href="/dashboard/users" {% if path.startswith('/dashboard/users') %}class="active"{% endif %}>Users</a>
+            <a href="/dashboard/buckets" {% if path.startswith('/dashboard/buckets') %}class="active"{% endif %}>Storage</a>
+            {% if auth and auth.is_super %}
+            <a href="/dashboard/email-templates" {% if path.startswith('/dashboard/email-templates') %}class="active"{% endif %}>Email Templates</a>
+            {% endif %}
+        </nav>
+        <div class="sidebar-identity">
+            {% if auth %}
+            <div class="email">{{ auth.email }}</div>
+            {% if auth.is_super %}<span class="role">Superadmin</span>{% endif %}
+            {% endif %}
+            <a href="/dashboard/logout" class="logout">Sign out</a>
+        </div>
+    </aside>
     <main class="content">
         {% block content %}{% endblock %}
     </main>
+    <div id="toast" role="status"></div>
+    {% include "_lattice.html" %}
+    <script>
+    function toast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.remove("show"), 1600);
+    }
+
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-copy]");
+      if (!btn) return;
+      navigator.clipboard.writeText(btn.dataset.copy).then(() => toast("Copied"));
+    });
+    </script>
 </body>
 </html>

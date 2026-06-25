@@ -1,4 +1,3 @@
-import uuid
 
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -10,6 +9,7 @@ class Tenant(Base, UUIDPrimaryKey, TimestampMixin):
     __tablename__ = "tenants"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    owner_email: Mapped[str | None] = mapped_column(String(320), index=True)
 
     applications: Mapped[list["Application"]] = relationship(  # noqa: F821
         back_populates="tenant", cascade="all, delete-orphan"

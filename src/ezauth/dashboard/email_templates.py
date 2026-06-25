@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from ezauth.dashboard.auth import require_dashboard_auth
+from ezauth.dashboard.auth import DashboardAuth, require_superadmin
 
 router = APIRouter()
 templates = Jinja2Templates(directory="src/ezauth/dashboard/templates")
@@ -28,7 +28,7 @@ def _validate_template_name(name: str) -> str:
 
 
 @router.get("", response_class=HTMLResponse)
-async def list_email_templates(request: Request, _=Depends(require_dashboard_auth)):
+async def list_email_templates(request: Request, auth: DashboardAuth = Depends(require_superadmin)):
     template_files = []
     if os.path.isdir(MAIL_TEMPLATES_DIR):
         for f in sorted(os.listdir(MAIL_TEMPLATES_DIR)):
@@ -37,13 +37,13 @@ async def list_email_templates(request: Request, _=Depends(require_dashboard_aut
 
     return templates.TemplateResponse(
         "email_editor/list.html",
-        {"request": request, "template_files": template_files},
+        {"request": request, "template_files": template_files, "auth": auth},
     )
 
 
 @router.get("/{name}", response_class=HTMLResponse)
 async def edit_email_template(
-    name: str, request: Request, _=Depends(require_dashboard_auth)
+    name: str, request: Request, auth: DashboardAuth = Depends(require_superadmin)
 ):
     path = _validate_template_name(name)
     content = ""
@@ -53,13 +53,13 @@ async def edit_email_template(
 
     return templates.TemplateResponse(
         "email_editor/edit.html",
-        {"request": request, "name": name, "content": content},
+        {"request": request, "name": name, "content": content, "auth": auth},
     )
 
 
 @router.post("/{name}")
 async def save_email_template(
-    name: str, request: Request, _=Depends(require_dashboard_auth)
+    name: str, request: Request, auth: DashboardAuth = Depends(require_superadmin)
 ):
     path = _validate_template_name(name)
     form = await request.form()

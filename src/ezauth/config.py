@@ -36,6 +36,8 @@ class Settings(BaseSettings):
 
     # Dashboard
     dashboard_secret_key: str = "change-me-in-production"
+    # Comma-separated emails granted full (superadmin) dashboard access
+    dashboard_admin_emails: str = ""
 
     # Hashcash proof-of-work
     hashcash_enabled: bool = True
