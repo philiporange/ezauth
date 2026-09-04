@@ -19,7 +19,7 @@ class Bucket(Base, UUIDPrimaryKey, TimestampMixin):
     max_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     max_size_bytes_per_user: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
-    objects: Mapped[list["StorageObject"]] = relationship(
+    objects: Mapped[list["StorageObject"]] = relationship(  # noqa: F821
         back_populates="bucket", cascade="all, delete-orphan",
     )
 

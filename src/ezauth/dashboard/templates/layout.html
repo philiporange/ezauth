@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ezAuth{% endblock %}</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -31,7 +32,10 @@
             <div class="email">{{ auth.email }}</div>
             {% if auth.is_super %}<span class="role">Superadmin</span>{% endif %}
             {% endif %}
-            <a href="/dashboard/logout" class="logout">Sign out</a>
+            <form method="post" action="/dashboard/logout" class="logout-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="logout">Sign out</button>
+            </form>
         </div>
     </aside>
     <main class="content">
@@ -40,6 +44,22 @@
     <div id="toast" role="status"></div>
     {% include "_lattice.html" %}
     <script>
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    document.body.addEventListener("htmx:configRequest", (e) => {
+      e.detail.headers["X-CSRF-Token"] = csrfToken;
+    });
+
+    document.addEventListener("submit", (e) => {
+      const message = e.target.dataset.confirm;
+      if (message && !confirm(message)) e.preventDefault();
+    });
+
+    document.addEventListener("click", (e) => {
+      const reveal = e.target.closest("[data-reveal]");
+      if (reveal) reveal.classList.toggle("revealed");
+    });
+
     function toast(msg) {
       const t = document.getElementById("toast");
       t.textContent = msg;

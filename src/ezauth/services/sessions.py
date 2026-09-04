@@ -1,9 +1,19 @@
-import base64
+"""Session lifecycle: minting access tokens, rotating refresh tokens, revoking.
+
+A session is a database row plus two credentials. The access token is a short
+lived RS256 JWT signed with the application's own key and carrying the session
+id in `sid`; the refresh token is a random string stored only as a SHA-256
+digest and rotated on every refresh, so a captured refresh token stops working
+as soon as the legitimate holder uses theirs. Because the access token is
+self-contained, revocation would otherwise take effect only at expiry, so
+`is_session_active` lets request authentication confirm the row on each call.
+Backend-minted sign-in tokens are clamped to `max_signin_token_lifetime_seconds`
+so no caller can request a token that outlives the revocation window by much.
+"""
+
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from jose import jwt
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +23,7 @@ from ezauth.crypto import generate_token, hash_token
 from ezauth.models.application import Application
 from ezauth.models.session import Session
 from ezauth.models.user import User
+from ezauth.services import keys as key_service
 
 
 async def create_session(
@@ -39,8 +50,13 @@ async def create_session(
     db.add(session)
     await db.flush()
 
+    signing_key = await key_service.active_key(db, app)
     access_jwt = mint_jwt(
-        app=app, user=user, session_id=session.id,
+        app=app,
+        user=user,
+        session_id=session.id,
+        signing_kid=signing_key.kid,
+        signing_pem=signing_key.private_pem,
         lifetime_seconds=jwt_lifetime_seconds,
     )
 
@@ -52,11 +68,14 @@ def mint_jwt(
     app: Application,
     user: User,
     session_id: uuid.UUID,
+    signing_kid: str,
+    signing_pem: str,
     lifetime_seconds: int | None = None,
 ) -> str:
     now = datetime.now(timezone.utc)
     if lifetime_seconds is not None:
-        exp = now + timedelta(seconds=lifetime_seconds)
+        capped = max(1, min(int(lifetime_seconds), settings.max_signin_token_lifetime_seconds))
+        exp = now + timedelta(seconds=capped)
     else:
         exp = now + timedelta(minutes=settings.jwt_access_token_expire_minutes)
     claims = {
@@ -73,7 +92,7 @@ def mint_jwt(
         claims["email_verified"] = user.email_verified_at is not None
     else:
         claims["email_verified"] = False
-    return jwt.encode(claims, app.jwk_private_pem, algorithm="RS256", headers={"kid": app.jwk_kid})
+    return jwt.encode(claims, signing_pem, algorithm="RS256", headers={"kid": signing_kid})
 
 
 async def refresh_session(
@@ -113,8 +132,35 @@ async def refresh_session(
     session.session_version += 1
     await db.flush()
 
-    new_jwt = mint_jwt(app=app, user=user, session_id=session.id)
+    signing_key = await key_service.active_key(db, app)
+    new_jwt = mint_jwt(
+        app=app,
+        user=user,
+        session_id=session.id,
+        signing_kid=signing_key.kid,
+        signing_pem=signing_key.private_pem,
+    )
     return session, new_jwt, new_raw_refresh
+
+
+async def is_session_active(
+    db: AsyncSession, *, session_id: uuid.UUID, app_id: uuid.UUID
+) -> bool:
+    """Whether a session row is still usable, so revocation outlives the JWT.
+
+    Access tokens are self-contained and live for minutes, so signature checks
+    alone would keep a logged-out session working until expiry. Every
+    cookie-authenticated request confirms the row here instead.
+    """
+    result = await db.execute(
+        select(Session.id).where(
+            Session.id == session_id,
+            Session.app_id == app_id,
+            Session.revoked_at.is_(None),
+            Session.expires_at > datetime.now(timezone.utc),
+        )
+    )
+    return result.first() is not None
 
 
 async def revoke_session(db: AsyncSession, *, session_id: uuid.UUID) -> bool:
@@ -128,26 +174,25 @@ async def revoke_session(db: AsyncSession, *, session_id: uuid.UUID) -> bool:
     return result.rowcount > 0
 
 
-def build_jwks(app: Application) -> dict:
-    """Build JWKS response for an application."""
-    private_key = load_pem_private_key(app.jwk_private_pem.encode(), password=None)
-    public_key = private_key.public_key()
-    public_numbers = public_key.public_numbers()
+async def revoke_user_sessions(
+    db: AsyncSession, *, user_id: uuid.UUID, app_id: uuid.UUID
+) -> int:
+    """Revoke every live session for a user, used when credentials change."""
+    result = await db.execute(
+        update(Session)
+        .where(
+            Session.user_id == user_id,
+            Session.app_id == app_id,
+            Session.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(timezone.utc))
+    )
+    return result.rowcount or 0
 
-    n_bytes = (public_numbers.n.bit_length() + 7) // 8
-    e_bytes = (public_numbers.e.bit_length() + 7) // 8
 
-    def _int_to_base64url(n: int, length: int) -> str:
-        data = n.to_bytes(length, byteorder="big")
-        return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
-
-    jwk_public = {
-        "kty": "RSA",
-        "kid": app.jwk_kid,
-        "use": "sig",
-        "alg": "RS256",
-        "n": _int_to_base64url(public_numbers.n, n_bytes),
-        "e": _int_to_base64url(public_numbers.e, e_bytes),
+async def build_jwks(db: AsyncSession, app: Application) -> dict:
+    """Publish every key whose signatures are still accepted for an application."""
+    app_keys = await key_service.verification_keys(db, app)
+    return {
+        "keys": [key_service.public_jwk(k.kid, k.private_pem) for k in app_keys]
     }
-
-    return {"keys": [jwk_public]}

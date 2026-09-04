@@ -1,3 +1,12 @@
+"""Custom-domain ownership checks.
+
+A customer points a hostname at the service with a CNAME, and the service will
+only serve or certificate that hostname once the record is observed, which is
+what stops one account from claiming another's domain. Some providers flatten
+the CNAME at the apex or proxy it, so a missing CNAME falls back to comparing
+the A records of the hostname and the target.
+"""
+
 import aiodns
 from loguru import logger
 

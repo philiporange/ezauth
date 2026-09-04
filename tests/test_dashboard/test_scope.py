@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from ezauth.dashboard.auth import DashboardAuth
 from ezauth.dashboard.scope import (
+    get_administered_tenant,
     get_owned_app,
     get_owned_tenant,
     scope_applications,
@@ -91,3 +92,27 @@ async def test_direct_app_owner_without_tenant_ownership(db, two_owners):
     assert (await get_owned_app(db, auth, legacy.id)) is not None
     # And the containing tenant becomes visible (but Bob's other app doesn't).
     assert (await get_owned_tenant(db, auth, t_bob.id)) is not None
+
+
+async def test_tenant_owner_may_administer_own_tenant(db, two_owners):
+    t_alice, _, _, _ = two_owners
+    auth = DashboardAuth(email="alice@x.com", is_super=False)
+    assert (await get_administered_tenant(db, auth, t_alice.id)) is not None
+
+
+async def test_app_owner_may_not_administer_the_tenant(db, two_owners):
+    """Owning an app inside a tenant grants a read, never a rename or a delete."""
+    _, t_bob, _, _ = two_owners
+    guest = _make_app(t_bob, owner_email="carol@x.com", name="Carol App")
+    db.add(guest)
+    await db.flush()
+
+    auth = DashboardAuth(email="carol@x.com", is_super=False)
+    assert (await get_owned_tenant(db, auth, t_bob.id)) is not None
+    assert (await get_administered_tenant(db, auth, t_bob.id)) is None
+
+
+async def test_superadmin_may_administer_any_tenant(db, two_owners):
+    _, t_bob, _, _ = two_owners
+    auth = DashboardAuth(email="root@x.com", is_super=True)
+    assert (await get_administered_tenant(db, auth, t_bob.id)) is not None

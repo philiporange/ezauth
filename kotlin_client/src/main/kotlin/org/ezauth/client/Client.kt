@@ -47,8 +47,9 @@ internal class BaseClient(
         body: JsonElement? = null,
         auth: AuthMode = AuthMode.SECRET,
         query: Map<String, String?>? = null,
+        bearer: Boolean = false,
     ): JsonObject? {
-        val request = buildRequest(path, method, body, auth, query)
+        val request = buildRequest(path, method, body, auth, query, bearer)
         return withContext(Dispatchers.IO) {
             val response = httpClient.newCall(request).execute()
             response.use { resp ->
@@ -157,6 +158,7 @@ internal class BaseClient(
         body: JsonElement?,
         auth: AuthMode,
         query: Map<String, String?>?,
+        bearer: Boolean = false,
     ): Request {
         val urlBuilder = "$baseUrl$path".toHttpUrl().newBuilder()
         query?.forEach { (key, value) ->
@@ -176,6 +178,13 @@ internal class BaseClient(
             .header("Content-Type", "application/json")
 
         applyAuth(builder, auth)
+
+        // Endpoints that resolve the caller's session accept the access token
+        // as a bearer credential alongside the publishable key.
+        val token = accessToken
+        if (bearer && token != null && auth == AuthMode.PUBLISHABLE) {
+            builder.header("Authorization", "Bearer $token")
+        }
 
         return builder.build()
     }

@@ -1,22 +1,30 @@
-"""Dashboard user browser: paginated, searchable list scoped to owned apps."""
+"""Dashboard user browser: paginated, searchable list scoped to owned apps.
+
+The search box builds a LIKE pattern, so the term is escaped before it reaches
+the query: without that, a search for "%" matches every user in every owned
+application and turns each keystroke into a full table scan.
+"""
 
 import uuid
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth
+from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth, templates
 from ezauth.dashboard.scope import owned_app_ids
 from ezauth.dependencies import get_db
 from ezauth.models.user import User
 
 router = APIRouter()
-templates = Jinja2Templates(directory="src/ezauth/dashboard/templates")
 
 PAGE_SIZE = 50
+
+
+def email_search_filter(search: str):
+    """Substring filter on the lowercased email with LIKE wildcards escaped."""
+    return User.email_lower.contains(search.lower(), autoescape=True)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -41,8 +49,9 @@ async def list_users(
         query = query.where(User.app_id == app_id)
         count_query = count_query.where(User.app_id == app_id)
     if search:
-        query = query.where(User.email_lower.contains(search.lower()))
-        count_query = count_query.where(User.email_lower.contains(search.lower()))
+        term = email_search_filter(search)
+        query = query.where(term)
+        count_query = count_query.where(term)
 
     query = query.limit(PAGE_SIZE).offset(offset)
     result = await db.execute(query)

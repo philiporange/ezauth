@@ -4,6 +4,31 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
+// ── Hashcash ────────────────────────────────────────────────────────────────
+
+@Serializable
+data class Argon2Params(
+    val time_cost: Int,
+    val memory_cost: Int,
+    val parallelism: Int,
+    val hash_len: Int,
+)
+
+@Serializable
+data class ChallengeResponse(
+    val challenge: String,
+    val difficulty: Int,
+    val params: Argon2Params,
+    val algorithm: String = "argon2id",
+    val expires_in: Int = 0,
+)
+
+@Serializable
+data class HashcashProof(
+    val challenge: String,
+    val nonce: String,
+)
+
 // ── Auth ────────────────────────────────────────────────────────────────────
 
 @Serializable

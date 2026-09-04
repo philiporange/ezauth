@@ -212,19 +212,19 @@
   <h4>Response <code>200</code></h4>
   <pre><code>{ <span class="str">"authorization_url"</span>: <span class="str">"https://accounts.google.com/..."</span> }</code></pre>
 
-  <h3>GET /v1/oauth/google/callback</h3>
+  <h3>GET /v1/oauth/{provider}/callback</h3>
   <div class="endpoint">
     <span class="badge badge-get">GET</span>
-    <span class="path">/v1/oauth/google/callback</span>
+    <span class="path">/v1/oauth/{provider}/callback</span>
   </div>
-  <p>Google OAuth callback. Handles code exchange, token verification, user upsert, and redirect.</p>
+  <p>OAuth redirect callback. Handles code exchange, token verification, user upsert, and redirect. Used by Google.</p>
 
-  <h3>POST /v1/oauth/apple/callback</h3>
+  <h3>POST /v1/oauth/{provider}/callback</h3>
   <div class="endpoint">
     <span class="badge badge-post">POST</span>
-    <span class="path">/v1/oauth/apple/callback</span>
+    <span class="path">/v1/oauth/{provider}/callback</span>
   </div>
-  <p>Apple OAuth callback (form_post response mode).</p>
+  <p>OAuth callback for the <code>form_post</code> response mode. Used by Apple.</p>
 
   <h3>GET /v1/oauth/providers</h3>
   <div class="endpoint">
@@ -234,13 +234,13 @@
   </div>
   <p>List configured OAuth providers (secrets redacted).</p>
 
-  <h3>POST /v1/oauth/providers</h3>
+  <h3>PUT /v1/oauth/providers/{provider}</h3>
   <div class="endpoint">
-    <span class="badge badge-post">POST</span>
-    <span class="path">/v1/oauth/providers</span>
+    <span class="badge badge-put">PUT</span>
+    <span class="path">/v1/oauth/providers/{provider}</span>
     <span class="badge badge-secret">Secret</span>
   </div>
-  <p>Configure an OAuth provider.</p>
+  <p>Configure an OAuth provider. Supported providers: <code>google</code>, <code>apple</code>.</p>
 
   <h3>DELETE /v1/oauth/providers/{provider}</h3>
   <div class="endpoint">
@@ -387,7 +387,7 @@
   <table>
     <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
     <tr><td><code>user_id</code></td><td>string</td><td>&mdash;</td><td>User ID to create token for</td></tr>
-    <tr><td><code>expires_in_seconds</code></td><td>int</td><td>300</td><td>Token lifetime in seconds</td></tr>
+    <tr><td><code>expires_in_seconds</code></td><td>int</td><td>300</td><td>Token lifetime in seconds, capped at <code>MAX_SIGNIN_TOKEN_LIFETIME_SECONDS</code></td></tr>
   </table>
   <h4>Response <code>200</code></h4>
   <pre><code>{
@@ -550,6 +550,19 @@
     <span class="badge badge-get">GET</span>
     <span class="path">/v1/buckets/{bucket_id}</span>
   </div>
+
+  <h3>PATCH /v1/buckets/{bucket_id}</h3>
+  <div class="endpoint">
+    <span class="badge badge-patch">PATCH</span>
+    <span class="path">/v1/buckets/{bucket_id}</span>
+  </div>
+  <p>Update a bucket's size limits. Send either field on its own; omit a field to leave it unchanged, or send <code>null</code> to remove the limit.</p>
+  <h4>Request Body</h4>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>max_size_bytes</code></td><td>int | null</td><td>Total size cap for the bucket</td></tr>
+    <tr><td><code>max_size_bytes_per_user</code></td><td>int | null</td><td>Per-user size cap within the bucket</td></tr>
+  </table>
 
   <h3>DELETE /v1/buckets/{bucket_id}</h3>
   <div class="endpoint">

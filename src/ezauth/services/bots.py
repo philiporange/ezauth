@@ -21,9 +21,9 @@ from ezauth.config import settings
 from ezauth.models.application import Application
 from ezauth.models.session import Session
 from ezauth.models.user import User
-from ezauth.ratelimiter import RateLimiter
+from ezauth.ratelimiter import RateLimiter, parse_limits
 from ezauth.services import audit, sessions
-from ezauth.services.auth import AuthError, _parse_rate_limit
+from ezauth.services.auth import AuthError
 
 
 def _validate_public_key(public_key_b64: str) -> bytes:
@@ -79,7 +79,7 @@ async def signup_bot(
     # Rate limit by IP
     ip_limiter = RateLimiter(
         redis,
-        _parse_rate_limit(settings.signup_rate_limit_ip),
+        parse_limits(settings.signup_rate_limit_ip),
         user_id=ip_address or "unknown",
         namespace=f"{app.id}:bot",
     )
@@ -150,7 +150,7 @@ async def auth_bot(
     # Rate limit by IP
     ip_limiter = RateLimiter(
         redis,
-        _parse_rate_limit(settings.signin_rate_limit_ip),
+        parse_limits(settings.signin_rate_limit_ip),
         user_id=ip_address or "unknown",
         namespace=f"{app.id}:bot",
     )

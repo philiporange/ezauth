@@ -1,69 +1,141 @@
+"""Dashboard editor for the instance-wide mail templates.
+
+The packaged files under `mail/templates` are the defaults and are never
+written to: an edit is stored as an `EmailTemplate` row, so it survives a
+redeploy, is shared by every instance and needs no writable package directory.
+Reverting deletes the row and the packaged default takes over again. Only names
+that correspond to a packaged template are editable, which keeps the name a
+plain identifier and leaves no way to reach the filesystem through it.
+"""
+
 import os
+import pathlib
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from sqlalchemy import select
 
-from ezauth.dashboard.auth import DashboardAuth, require_superadmin
+from ezauth.dashboard.auth import DashboardAuth, require_superadmin, templates
+from ezauth.dependencies import DbSession
+from ezauth.models.email_template import EmailTemplate
 
 router = APIRouter()
-templates = Jinja2Templates(directory="src/ezauth/dashboard/templates")
 
-MAIL_TEMPLATES_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)), "mail", "templates"
-)
+MAIL_TEMPLATES_DIR = pathlib.Path(__file__).parent.parent / "mail" / "templates"
+
+BASE_TEMPLATE = "base"
+TEMPLATE_FORMAT = "html"
 
 _SAFE_NAME_RE = re.compile(r"^[a-z0-9_-]+$")
 
 
-def _validate_template_name(name: str) -> str:
-    """Validate template name to prevent path traversal."""
-    if not _SAFE_NAME_RE.match(name):
+def _packaged_names() -> list[str]:
+    """Editable template names shipped with the package."""
+    if not MAIL_TEMPLATES_DIR.is_dir():
+        return []
+    return sorted(
+        path.stem
+        for path in MAIL_TEMPLATES_DIR.glob(f"*.{TEMPLATE_FORMAT}")
+        if path.stem != BASE_TEMPLATE
+    )
+
+
+def _packaged_path(name: str) -> pathlib.Path:
+    """Path of the packaged default, rejecting anything that is not one."""
+    if not _SAFE_NAME_RE.match(name) or name == BASE_TEMPLATE:
         raise HTTPException(status_code=400, detail="Invalid template name")
-    path = os.path.join(MAIL_TEMPLATES_DIR, f"{name}.html")
-    if not os.path.realpath(path).startswith(os.path.realpath(MAIL_TEMPLATES_DIR)):
+    path = MAIL_TEMPLATES_DIR / f"{name}.{TEMPLATE_FORMAT}"
+    if os.path.realpath(path.parent) != os.path.realpath(MAIL_TEMPLATES_DIR):
         raise HTTPException(status_code=400, detail="Invalid template name")
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Unknown template")
     return path
 
 
-@router.get("", response_class=HTMLResponse)
-async def list_email_templates(request: Request, auth: DashboardAuth = Depends(require_superadmin)):
-    template_files = []
-    if os.path.isdir(MAIL_TEMPLATES_DIR):
-        for f in sorted(os.listdir(MAIL_TEMPLATES_DIR)):
-            if f.endswith(".html") and f != "base.html":
-                template_files.append(f.replace(".html", ""))
+async def _get_override(db: DbSession, name: str) -> EmailTemplate | None:
+    result = await db.execute(
+        select(EmailTemplate).where(
+            EmailTemplate.name == name, EmailTemplate.format == TEMPLATE_FORMAT
+        )
+    )
+    return result.scalars().first()
 
+
+@router.get("", response_class=HTMLResponse)
+async def list_email_templates(
+    request: Request,
+    db: DbSession,
+    auth: DashboardAuth = Depends(require_superadmin),
+):
+    result = await db.execute(
+        select(EmailTemplate.name).where(EmailTemplate.format == TEMPLATE_FORMAT)
+    )
+    overridden = set(result.scalars().all())
     return templates.TemplateResponse(
         "email_editor/list.html",
-        {"request": request, "template_files": template_files, "auth": auth},
+        {
+            "request": request,
+            "template_files": _packaged_names(),
+            "overridden": overridden,
+            "auth": auth,
+        },
     )
 
 
 @router.get("/{name}", response_class=HTMLResponse)
 async def edit_email_template(
-    name: str, request: Request, auth: DashboardAuth = Depends(require_superadmin)
+    name: str,
+    request: Request,
+    db: DbSession,
+    auth: DashboardAuth = Depends(require_superadmin),
 ):
-    path = _validate_template_name(name)
-    content = ""
-    if os.path.isfile(path):
-        with open(path) as f:
-            content = f.read()
+    path = _packaged_path(name)
+    override = await _get_override(db, name)
+    content = override.content if override else path.read_text()
 
     return templates.TemplateResponse(
         "email_editor/edit.html",
-        {"request": request, "name": name, "content": content, "auth": auth},
+        {
+            "request": request,
+            "name": name,
+            "content": content,
+            "is_override": override is not None,
+            "auth": auth,
+        },
     )
 
 
 @router.post("/{name}")
 async def save_email_template(
-    name: str, request: Request, auth: DashboardAuth = Depends(require_superadmin)
+    name: str,
+    request: Request,
+    db: DbSession,
+    auth: DashboardAuth = Depends(require_superadmin),
 ):
-    path = _validate_template_name(name)
+    _packaged_path(name)
     form = await request.form()
     content = form.get("content", "")
-    with open(path, "w") as f:
-        f.write(content)
+
+    override = await _get_override(db, name)
+    if override is None:
+        db.add(EmailTemplate(name=name, format=TEMPLATE_FORMAT, content=content))
+    else:
+        override.content = content
+    await db.flush()
     return HTMLResponse('<span class="text-success">Saved!</span>')
+
+
+@router.post("/{name}/reset")
+async def reset_email_template(
+    name: str,
+    request: Request,
+    db: DbSession,
+    auth: DashboardAuth = Depends(require_superadmin),
+):
+    _packaged_path(name)
+    override = await _get_override(db, name)
+    if override is not None:
+        await db.delete(override)
+        await db.flush()
+    return HTMLResponse('<span class="text-success">Reverted to the packaged default.</span>')

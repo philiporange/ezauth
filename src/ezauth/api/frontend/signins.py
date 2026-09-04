@@ -1,6 +1,13 @@
+"""Sign-in endpoint for password and magic-link strategies.
+
+Both strategies are rate limited per IP and per address inside the auth
+service, and the magic-link branch returns the same response for unknown
+addresses so the endpoint reveals nothing about who has an account.
+"""
+
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from ezauth.config import settings
+from ezauth.cookies import set_session_cookies
 from ezauth.dependencies import AppDep, DbSession, RedisDep
 from ezauth.schemas.auth import AuthResponse, SessionResponse, SigninRequest
 from ezauth.services.auth import AuthError, signin_magic_link, signin_password
@@ -31,13 +38,11 @@ async def create_signin(
                 ip_address=ip,
                 user_agent=ua,
             )
-            response.set_cookie(
-                key=settings.session_cookie_name,
-                value=access_jwt,
-                httponly=True,
-                secure=settings.session_cookie_secure,
-                samesite="lax",
-                domain=settings.session_cookie_domain or None,
+            set_session_cookies(
+                response,
+                access_jwt=access_jwt,
+                refresh_token=raw_refresh,
+                app=app,
             )
             return SessionResponse(
                 access_token=access_jwt,
@@ -57,5 +62,10 @@ async def create_signin(
             )
             return AuthResponse(**result)
     except AuthError as e:
-        status = 429 if e.code == "rate_limited" else 401 if e.code == "invalid_credentials" else 400
+        if e.code == "rate_limited":
+            status = 429
+        elif e.code in ("invalid_credentials", "email_not_verified"):
+            status = 401
+        else:
+            status = 400
         raise HTTPException(status_code=status, detail=e.message)

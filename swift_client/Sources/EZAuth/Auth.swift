@@ -4,14 +4,45 @@ import Foundation
 public struct Auth: Sendable {
     let client: BaseClient
 
+    // MARK: - Hashcash
+
+    /// Request a hashcash proof-of-work challenge.
+    public func requestChallenge() async throws -> HashcashChallenge {
+        try await client.fetch(
+            HashcashChallenge.self,
+            path: "/v1/challenges",
+            method: "POST",
+            auth: .publishable
+        )
+    }
+
     // MARK: - Sign up
 
-    public func signUp(email: String, password: String? = nil, redirectUrl: String? = nil) async throws -> SignUpResponse {
-        try await client.fetch(
+    /// Create a user. Proof of work is on by default on the server, so unless
+    /// `hashcash` is supplied a challenge is requested and solved first. Pass
+    /// `solveHashcash: false` against a server that has it turned off.
+    public func signUp(
+        email: String,
+        password: String? = nil,
+        redirectUrl: String? = nil,
+        hashcash: HashcashProof? = nil,
+        solveHashcash: Bool = true
+    ) async throws -> SignUpResponse {
+        var proof = hashcash
+        if proof == nil, solveHashcash {
+            let challenge = try await requestChallenge()
+            proof = await Task.detached(priority: .userInitiated) {
+                Hashcash.solve(challenge)
+            }.value
+        }
+
+        return try await client.fetch(
             SignUpResponse.self,
             path: "/v1/signups",
             method: "POST",
-            body: SignUpRequest(email: email, password: password, redirect_url: redirectUrl),
+            body: SignUpRequest(
+                email: email, password: password, redirect_url: redirectUrl, hashcash: proof
+            ),
             auth: .publishable
         )
     }
@@ -36,7 +67,8 @@ public struct Auth: Sendable {
             SignOutResponse.self,
             path: "/v1/sessions/logout",
             method: "POST",
-            auth: .publishable
+            auth: .publishable,
+            bearer: true
         )
     }
 
@@ -58,7 +90,8 @@ public struct Auth: Sendable {
         try await client.fetch(
             UserResponse.self,
             path: "/v1/me",
-            auth: .publishable
+            auth: .publishable,
+            bearer: true
         )
     }
 
@@ -104,6 +137,7 @@ struct SignUpRequest: Encodable {
     let email: String
     let password: String?
     let redirect_url: String?
+    let hashcash: HashcashProof?
 }
 
 public struct SignUpResponse: Decodable, Sendable {

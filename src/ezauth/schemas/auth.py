@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from ezauth.schemas.hashcash import HashcashProof
 
@@ -37,9 +37,9 @@ class MeResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class SignInTokenRequest(BaseModel):
     user_id: str
-    expires_in_seconds: int = 300
+    expires_in_seconds: int = Field(300, gt=0, le=86400)

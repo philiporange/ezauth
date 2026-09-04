@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=== EZAuth Installation ==="
+echo "=== ezAuth installation ==="
 echo ""
 
 # --- Check prerequisites ---
@@ -16,7 +16,15 @@ check_cmd() {
 check_cmd python3
 check_cmd pip
 check_cmd docker
-check_cmd docker-compose || check_cmd "docker compose"
+
+if docker compose version &>/dev/null; then
+    COMPOSE=(docker compose)
+elif command -v docker-compose &>/dev/null; then
+    COMPOSE=(docker-compose)
+else
+    echo "Error: neither 'docker compose' nor 'docker-compose' is available."
+    exit 1
+fi
 
 PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 REQUIRED="3.11"
@@ -27,20 +35,31 @@ fi
 
 echo "[1/5] Prerequisites OK (Python $PYTHON_VERSION)"
 
-# --- Start services ---
+# --- Set up environment ---
+# .env comes first: docker compose reads the Postgres credentials from it.
 
-echo "[2/5] Starting PostgreSQL and Redis..."
-if command -v docker-compose &>/dev/null; then
-    docker-compose up -d
+if [ ! -f .env ]; then
+    echo "[2/5] Creating .env from .env.example..."
+    cp .env.example .env
 else
-    docker compose up -d
+    echo "[2/5] .env already exists, skipping"
 fi
 
-# Wait for Postgres to be ready
+# --- Start services ---
+
+for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB; do
+    if ! grep -q "^${var}=" .env; then
+        echo "Error: ${var} is missing from .env. Copy the value from .env.example."
+        exit 1
+    fi
+done
+
+echo "[3/5] Starting PostgreSQL and Redis..."
+"${COMPOSE[@]}" up -d postgres redis
+
 echo "       Waiting for PostgreSQL..."
-for i in $(seq 1 30); do
-    if docker-compose exec -T postgres pg_isready -U ezauth &>/dev/null 2>&1 || \
-       docker compose exec -T postgres pg_isready -U ezauth &>/dev/null 2>&1; then
+for _ in $(seq 1 60); do
+    if "${COMPOSE[@]}" exec -T postgres pg_isready -q; then
         break
     fi
     sleep 1
@@ -48,24 +67,8 @@ done
 
 # --- Install Python dependencies ---
 
-echo "[3/5] Installing Python dependencies..."
+echo "[4/5] Installing Python dependencies..."
 pip install -e ".[dev]" -q
-
-# --- Set up environment ---
-
-if [ ! -f .env ]; then
-    echo "[4/5] Creating .env from .env.example..."
-    cp .env.example .env
-    # Generate a random dashboard secret key
-    DASHBOARD_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s/change-me-in-production/$DASHBOARD_KEY/" .env
-    else
-        sed -i "s/change-me-in-production/$DASHBOARD_KEY/" .env
-    fi
-else
-    echo "[4/5] .env already exists, skipping"
-fi
 
 # --- Run database migrations ---
 
@@ -77,6 +80,9 @@ echo "=== Installation complete ==="
 echo ""
 echo "Start the server with:"
 echo "  uvicorn ezauth.main:create_app --factory --reload"
+echo ""
+echo "Or run the whole stack, migrations included, in Docker:"
+echo "  ${COMPOSE[*]} up -d --build"
 echo ""
 echo "Dashboard:    http://localhost:8000/dashboard"
 echo "API:          http://localhost:8000/v1/"

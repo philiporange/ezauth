@@ -14,19 +14,19 @@ class StorageObject(Base, UUIDPrimaryKey, TimestampMixin):
     )
 
     app_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("applications.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True
     )
     bucket_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("buckets.id", ondelete="CASCADE"), nullable=False
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     key: Mapped[str] = mapped_column(String(1024), nullable=False)
     content_type: Mapped[str] = mapped_column(String(255), nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
-    bucket: Mapped["Bucket"] = relationship(back_populates="objects")
+    bucket: Mapped["Bucket"] = relationship(back_populates="objects")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<StorageObject {self.id} key={self.key!r}>"

@@ -4,11 +4,19 @@
 <a href="/dashboard/email-templates" class="back-link">&larr; Email templates</a>
 <div class="page-header">
     <h2 class="mono" style="font-size:26px">{{ name }}</h2>
+    {% if is_override %}<span class="badge">Overridden</span>{% endif %}
 </div>
 <form hx-post="/dashboard/email-templates/{{ name }}" hx-target="#save-status" hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <textarea name="content" rows="25" class="code-editor" spellcheck="false">{{ content }}</textarea>
     <div class="form-actions">
         <button type="submit">Save</button>
+        {% if is_override %}
+        <button type="button" class="btn-ghost"
+                hx-post="/dashboard/email-templates/{{ name }}/reset"
+                hx-target="#save-status" hx-swap="innerHTML"
+                hx-confirm="Discard this override and use the packaged default?">Revert to default</button>
+        {% endif %}
         <span id="save-status"></span>
     </div>
 </form>

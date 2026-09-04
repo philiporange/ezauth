@@ -1,9 +1,12 @@
 """Ownership scoping helpers for the dashboard.
 
-Every dashboard query and mutation must be limited to resources the logged-in
-owner controls: tenants whose owner_email matches, and applications either in
-those tenants or carrying the email as their own owner_email. Superadmins
-(settings.dashboard_admin_emails) bypass all filters.
+Two levels of access exist. Reading is granted through either route into a
+tenant: the tenant's own `owner_email`, or ownership of one application inside
+it, so an application owner can see the tenant their app lives in. Renaming or
+deleting a tenant destroys every application under it, so it is granted only by
+`Tenant.owner_email`. Applications are scoped to their own `owner_email` or to
+the owner of their tenant. Superadmins (settings.dashboard_admin_emails) bypass
+all filters.
 """
 
 import uuid
@@ -31,6 +34,7 @@ def owned_app_ids(auth: DashboardAuth) -> Select:
 
 
 def scope_tenants(query: Select, auth: DashboardAuth) -> Select:
+    """Restrict a tenant query to what this identity may read."""
     if auth.is_super:
         return query
     return query.where(
@@ -45,6 +49,13 @@ def scope_tenants(query: Select, auth: DashboardAuth) -> Select:
     )
 
 
+def scope_administered_tenants(query: Select, auth: DashboardAuth) -> Select:
+    """Restrict a tenant query to tenants this identity may modify or delete."""
+    if auth.is_super:
+        return query
+    return query.where(func.lower(Tenant.owner_email) == auth.email)
+
+
 def scope_applications(query: Select, auth: DashboardAuth) -> Select:
     if auth.is_super:
         return query
@@ -55,6 +66,15 @@ async def get_owned_tenant(
     db: AsyncSession, auth: DashboardAuth, tenant_id: uuid.UUID
 ) -> Tenant | None:
     query = scope_tenants(select(Tenant).where(Tenant.id == tenant_id), auth)
+    result = await db.execute(query)
+    return result.scalars().first()
+
+
+async def get_administered_tenant(
+    db: AsyncSession, auth: DashboardAuth, tenant_id: uuid.UUID
+) -> Tenant | None:
+    """The tenant, only if this identity owns it outright."""
+    query = scope_administered_tenants(select(Tenant).where(Tenant.id == tenant_id), auth)
     result = await db.execute(query)
     return result.scalars().first()
 

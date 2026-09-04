@@ -24,7 +24,7 @@ class CustomColumn(Base, UUIDPrimaryKey, TimestampMixin):
     )
 
     app_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("applications.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True
     )
     table_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("custom_tables.id", ondelete="CASCADE"), nullable=False, index=True
@@ -35,7 +35,7 @@ class CustomColumn(Base, UUIDPrimaryKey, TimestampMixin):
     default_value: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
-    table: Mapped["CustomTable"] = relationship(back_populates="columns")
+    table: Mapped["CustomTable"] = relationship(back_populates="columns")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<CustomColumn {self.id} name={self.name!r} type={self.type!r}>"

@@ -2,11 +2,10 @@
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth
+from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth, templates
 from ezauth.dashboard.scope import owned_app_ids, scope_applications, scope_tenants
 from ezauth.dependencies import get_db
 from ezauth.models.application import Application
@@ -15,7 +14,6 @@ from ezauth.models.tenant import Tenant
 from ezauth.models.user import User
 
 router = APIRouter()
-templates = Jinja2Templates(directory="src/ezauth/dashboard/templates")
 
 
 @router.get("/", response_class=HTMLResponse)

@@ -1,3 +1,13 @@
+"""Audit trail writes.
+
+Security-relevant events (sign-ins, token issuance, administrative changes) are
+appended to the `audit_log` table with the actor, the address and agent they
+came from, and any event-specific metadata. Writing an entry must never be the
+reason a request fails, so a failure here is logged and swallowed; the caller's
+own transaction decides whether the entry is kept. Entries are pruned by the
+background cleanup task once they pass `settings.audit_log_retention_days`.
+"""
+
 import uuid
 from typing import Any
 

@@ -18,9 +18,11 @@ class AuditLog(Base, UUIDPrimaryKey):
         ForeignKey("applications.id", ondelete="CASCADE"), nullable=False
     )
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     session_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("sessions.id", ondelete="SET NULL")
+        ForeignKey("sessions.id", ondelete="SET NULL"), index=True
     )
     ip_address: Mapped[str | None] = mapped_column(String(45))
     user_agent: Mapped[str | None] = mapped_column(Text)

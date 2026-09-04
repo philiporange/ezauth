@@ -1,3 +1,10 @@
+"""Signup endpoint.
+
+Signup is gated by a hashcash proof of work so that creating accounts costs the
+caller measurable CPU, and returns the same response whether or not the address
+already exists, so it cannot be used to test which addresses are registered.
+"""
+
 from fastapi import APIRouter, HTTPException, Request
 
 from ezauth.config import settings
@@ -21,7 +28,10 @@ async def create_signup(
         if body.hashcash is None:
             raise HTTPException(
                 status_code=422,
-                detail="Proof of work required. Request a challenge from POST /v1/challenges first.",
+                detail=(
+                    "Proof of work required. "
+                    "Request a challenge from POST /v1/challenges first."
+                ),
             )
         try:
             await verify_proof(redis, body.hashcash.challenge, body.hashcash.nonce)
@@ -42,5 +52,5 @@ async def create_signup(
         )
         return AuthResponse(**result)
     except AuthError as e:
-        status = 429 if e.code == "rate_limited" else 409 if e.code == "user_exists" else 400
+        status = 429 if e.code == "rate_limited" else 400
         raise HTTPException(status_code=status, detail=e.message)

@@ -27,6 +27,7 @@
 <section>
     <h3>Size limits</h3>
     <form method="post" action="/dashboard/buckets/{{ bucket.id }}" style="max-width:420px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label for="max_size_bytes">Bucket limit (bytes)</label>
         <input type="number" id="max_size_bytes" name="max_size_bytes" value="{{ bucket.max_size_bytes or '' }}" placeholder="Unlimited" min="1">
         <p class="hint">Maximum total storage for this bucket across all users. Leave empty for unlimited.</p>
@@ -45,7 +46,8 @@
     <h3>Danger zone</h3>
     <p>Deleting a bucket permanently removes all of its objects.</p>
     <form method="post" action="/dashboard/buckets/{{ bucket.id }}/delete"
-          onsubmit="return confirm('Delete this bucket and all its objects?')">
+          data-confirm="Delete bucket {{ bucket.name }} and all its objects?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit" class="btn-danger">Delete bucket</button>
     </form>
 </div>

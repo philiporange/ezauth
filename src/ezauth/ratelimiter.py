@@ -1,9 +1,33 @@
+"""Fixed-window rate limiting backed by Redis.
+
+Counters live in Redis rather than process memory so a limit is shared by every
+worker and every host behind the load balancer; a per-process counter would let
+an attacker multiply their allowance by the number of workers. Each configured
+window is an INCR against a key that expires when the window does.
+
+Limits are configured as "window_seconds:max_count" strings and parsed by
+`parse_limits`. A caller identifies the subject (an IP address, an email
+address) and an optional namespace, usually the application id, so that one
+application's traffic cannot exhaust another's budget.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import redis.asyncio as aioredis
+
+
+def parse_limits(config_str: str) -> list[tuple[int, int]]:
+    """Parse a "window_seconds:max_count" setting into limiter windows."""
+    try:
+        window, count = config_str.split(":")
+        return [(int(window), int(count))]
+    except (ValueError, TypeError) as e:
+        raise ValueError(
+            f"Invalid rate limit format {config_str!r}, expected 'window:count'"
+        ) from e
 
 
 class RateLimiter:

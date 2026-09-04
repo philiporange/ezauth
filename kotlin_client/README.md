@@ -124,6 +124,16 @@ val ez = EZAuth(
 )
 ```
 
+### Proof of work
+
+Signup requires a hashcash proof whenever the server has `HASHCASH_ENABLED` on,
+which is the default. The client requests a challenge and solves it (Argon2id,
+a second or two of CPU) before sending the signup, so no extra call is needed.
+Pass a proof you solved yourself, or turn the step off against a server that
+has proof of work disabled.
+
+Argon2id comes from Bouncy Castle; solving runs on `Dispatchers.Default`.
+
 ## API reference
 
 ### `EZAuth(baseUrl, secretKey?, publishableKey?, httpClient?)`
@@ -132,7 +142,8 @@ val ez = EZAuth(
 
 | Method | Description |
 |--------|-------------|
-| `signUp(email, password?, redirectUrl?)` | Create a new user |
+| `signUp(email, password?, redirectUrl?, hashcash?, solveHashcash?)` | Create a new user, solving proof of work first |
+| `requestChallenge()` | Request a hashcash proof-of-work challenge |
 | `signIn(email, password?, strategy?, redirectUrl?)` | Sign in |
 | `signOut()` | Sign out current session |
 | `verifyCode(email, code)` | Verify a 6-digit code |

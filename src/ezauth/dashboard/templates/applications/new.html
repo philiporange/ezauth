@@ -8,6 +8,7 @@
 
 {% if tenants %}
 <form method="post" action="/dashboard/applications" style="max-width:720px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-grid">
         <div class="field">
             <label for="name">Name</label>

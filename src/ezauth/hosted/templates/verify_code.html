@@ -7,8 +7,10 @@
     <p class="auth-description">We sent a 6-digit code to <strong>{{ email }}</strong>.</p>
 
     <form method="post" action="/auth/verify-code">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="email" value="{{ email }}">
         <input type="hidden" name="redirect_url" value="{{ redirect_url or '' }}">
+        <input type="hidden" name="type" value="{{ type or 'signin' }}">
 
         <label for="code">Verification code</label>
         <input type="text" id="code" name="code" placeholder="000000" required autofocus

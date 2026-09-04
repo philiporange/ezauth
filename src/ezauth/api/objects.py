@@ -1,11 +1,31 @@
+"""HTTP routes for buckets and object storage.
+
+Buckets are administered with the application secret key; objects are read and
+written by end users, who are always scoped to their own user id. An admin
+caller must name the target user explicitly, and that user is checked to belong
+to the calling application before anything touches storage.
+
+Uploads are size-capped twice: the declared ``Content-Length`` is rejected
+before a byte is read, and the request stream is abandoned as soon as it
+exceeds the cap, so an oversized body is never buffered. Downloads stream back
+from S3 chunk by chunk and are always served as an attachment with
+``X-Content-Type-Options: nosniff``, so a user-supplied content type cannot
+render in this origin. Service errors carry a code that maps to a status here:
+unconfigured storage answers 503 and a backend failure 502, rather than
+reporting a success the store never saw.
+"""
+
+import re
 import uuid
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import Response
+from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 
 from ezauth.config import settings
 from ezauth.dependencies import AppAuthDep, DbSession, RedisDep
+from ezauth.models.user import User
 from ezauth.schemas.objects import (
     BucketListResponse,
     BucketResponse,
@@ -20,6 +40,25 @@ from ezauth.services.auth import AuthError
 
 router = APIRouter()
 
+_STATUS_BY_CODE = {
+    "bucket_exists": 409,
+    "invalid_content_type": 400,
+    "invalid_cursor": 400,
+    "invalid_key": 400,
+    "invalid_limit": 400,
+    "not_found": 404,
+    "object_too_large": 413,
+    "storage_error": 502,
+    "storage_limit_exceeded": 413,
+    "storage_unavailable": 503,
+}
+
+_UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _http_error(exc: AuthError) -> HTTPException:
+    return HTTPException(status_code=_STATUS_BY_CODE.get(exc.code, 400), detail=exc.message)
+
 
 def _get_s3(request: Request):
     return getattr(request.app.state, "s3", None)
@@ -28,6 +67,59 @@ def _get_s3(request: Request):
 def _require_admin(auth: AppAuthDep) -> None:
     if not auth.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
+
+
+async def _resolve_target_user(
+    db: DbSession,
+    auth: AppAuthDep,
+    user_id: uuid.UUID | None,
+    *,
+    required: bool = True,
+) -> uuid.UUID | None:
+    """Return the user whose objects the caller may touch, validating admin input."""
+    if not auth.is_admin:
+        return auth.user_id
+
+    if user_id is None:
+        if required:
+            raise HTTPException(
+                status_code=400, detail="user_id query param required for admin access",
+            )
+        return None
+
+    result = await db.execute(
+        select(User.id).where(User.id == user_id, User.app_id == auth.app.id)
+    )
+    if result.scalar() is None:
+        raise HTTPException(
+            status_code=400, detail="user_id does not belong to this application",
+        )
+    return user_id
+
+
+async def _read_capped_body(request: Request, max_bytes: int) -> bytes:
+    """Read the request body, refusing anything over ``max_bytes`` without buffering it."""
+    too_large = HTTPException(
+        status_code=413, detail=f"Object too large (max {max_bytes} bytes)",
+    )
+
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            length = int(declared)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length header")
+        if length > max_bytes:
+            raise too_large
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise too_large
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 # -- Buckets --
@@ -49,9 +141,7 @@ async def create_bucket(
         )
         return bucket
     except AuthError as e:
-        if e.code == "bucket_exists":
-            raise HTTPException(status_code=409, detail=e.message)
-        raise HTTPException(status_code=400, detail=e.message)
+        raise _http_error(e)
 
 
 @router.get("/buckets", response_model=BucketListResponse)
@@ -92,7 +182,7 @@ async def get_bucket(
         bucket = await objects_svc.get_bucket(db, app_id=auth.app.id, bucket_id=bucket_id)
         return bucket
     except AuthError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise _http_error(e)
 
 
 @router.patch("/buckets/{bucket_id}", response_model=BucketResponse)
@@ -114,7 +204,7 @@ async def update_bucket(
         )
         return bucket
     except AuthError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise _http_error(e)
 
 
 @router.delete("/buckets/{bucket_id}", status_code=204)
@@ -129,7 +219,7 @@ async def delete_bucket(
     try:
         await objects_svc.delete_bucket(db, s3, app_id=auth.app.id, bucket_id=bucket_id)
     except AuthError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise _http_error(e)
 
 
 # -- Objects --
@@ -144,15 +234,10 @@ async def put_object(
     redis: RedisDep,
     user_id: uuid.UUID | None = Query(None),
 ):
-    if auth.is_admin:
-        if user_id is None:
-            raise HTTPException(status_code=400, detail="user_id query param required for admin uploads")
-        target_user_id = user_id
-    else:
-        target_user_id = auth.user_id
+    target_user_id = await _resolve_target_user(db, auth, user_id)
 
-    content_type = request.headers.get("content-type", "application/octet-stream")
-    data = await request.body()
+    content_type = request.headers.get("content-type", objects_svc.DEFAULT_CONTENT_TYPE)
+    data = await _read_capped_body(request, settings.object_storage_max_object_bytes)
 
     s3 = _get_s3(request)
     try:
@@ -167,13 +252,7 @@ async def put_object(
         )
         return ObjectResponse.model_validate(obj)
     except AuthError as e:
-        if e.code == "object_too_large":
-            raise HTTPException(status_code=413, detail=e.message)
-        if e.code == "storage_limit_exceeded":
-            raise HTTPException(status_code=413, detail=e.message)
-        if e.code == "not_found":
-            raise HTTPException(status_code=404, detail=e.message)
-        raise HTTPException(status_code=400, detail=e.message)
+        raise _http_error(e)
 
 
 @router.get("/buckets/{bucket_id}/objects/{key:path}")
@@ -185,30 +264,35 @@ async def get_object(
     auth: AppAuthDep,
     user_id: uuid.UUID | None = Query(None),
 ):
-    if auth.is_admin:
-        if user_id is None:
-            raise HTTPException(status_code=400, detail="user_id query param required for admin access")
-        target_user_id = user_id
-    else:
-        target_user_id = auth.user_id
+    target_user_id = await _resolve_target_user(db, auth, user_id)
 
     s3 = _get_s3(request)
     try:
-        obj, data = await objects_svc.get_object_data(
+        obj, body = await objects_svc.open_object(
             db, s3,
             app_id=auth.app.id,
             bucket_id=bucket_id,
             user_id=target_user_id,
             key=key,
         )
-        filename = key.rsplit("/", 1)[-1] if "/" in key else key
-        return Response(
-            content=data,
-            media_type=obj.content_type,
-            headers={"Content-Disposition": f'inline; filename="{quote(filename)}"'},
-        )
     except AuthError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise _http_error(e)
+
+    return StreamingResponse(
+        objects_svc.iter_object_body(body),
+        media_type=obj.content_type,
+        headers={
+            "Content-Disposition": _attachment_disposition(key),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+def _attachment_disposition(key: str) -> str:
+    """Force a download, with an ASCII fallback alongside the UTF-8 filename."""
+    filename = key.rsplit("/", 1)[-1] or "download"
+    ascii_name = _UNSAFE_FILENAME_CHARS.sub("_", filename).strip("_") or "download"
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
 
 
 @router.delete("/buckets/{bucket_id}/objects/{key:path}", status_code=204)
@@ -221,12 +305,7 @@ async def delete_object(
     redis: RedisDep,
     user_id: uuid.UUID | None = Query(None),
 ):
-    if auth.is_admin:
-        if user_id is None:
-            raise HTTPException(status_code=400, detail="user_id query param required for admin access")
-        target_user_id = user_id
-    else:
-        target_user_id = auth.user_id
+    target_user_id = await _resolve_target_user(db, auth, user_id)
 
     s3 = _get_s3(request)
     try:
@@ -238,7 +317,7 @@ async def delete_object(
             key=key,
         )
     except AuthError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise _http_error(e)
 
 
 @router.get("/buckets/{bucket_id}/objects", response_model=ObjectListResponse)
@@ -250,11 +329,8 @@ async def list_objects(
     cursor: str | None = Query(None),
     user_id: uuid.UUID | None = Query(None),
 ):
-    # Users only see their own objects; admins see all or can filter by user_id
-    if auth.is_admin:
-        target_user_id = user_id  # None = all objects
-    else:
-        target_user_id = auth.user_id
+    # Users only see their own objects; admins see all or can filter by user_id.
+    target_user_id = await _resolve_target_user(db, auth, user_id, required=False)
 
     try:
         objects, next_cursor = await objects_svc.list_objects(
@@ -270,4 +346,4 @@ async def list_objects(
             next_cursor=next_cursor,
         )
     except AuthError as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        raise _http_error(e)

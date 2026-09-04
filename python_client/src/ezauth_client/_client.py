@@ -1,6 +1,14 @@
+"""HTTP plumbing shared by every ezAuth client namespace.
+
+Builds request URLs and authorization headers, then turns non-2xx responses
+into :class:`EZAuthError`. Query strings are percent-encoded with urlencode so
+that values carrying reserved characters, such as a redirect URL with its own
+query, survive intact.
+"""
+
 from __future__ import annotations
 
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import httpx
 
@@ -59,7 +67,7 @@ class BaseClient:
         if query:
             params = {k: str(v) for k, v in query.items() if v is not None}
             if params:
-                url += "?" + "&".join(f"{k}={v}" for k, v in params.items())
+                url += "?" + urlencode(params)
         return url
 
     def _fetch(

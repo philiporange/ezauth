@@ -1,3 +1,10 @@
+"""Backend session operations, authenticated with an application secret key.
+
+Optional request fields are left out of the JSON body rather than sent as
+null, because the server schema types them as integers with defaults and
+rejects an explicit null.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -23,11 +30,7 @@ class Sessions:
         *,
         expires_in_seconds: int | None = None,
     ) -> dict:
-        return self._client._fetch(
-            "/v1/sign_in_tokens",
-            method="POST",
-            body={
-                "user_id": user_id,
-                "expires_in_seconds": expires_in_seconds,
-            },
-        )
+        body: dict = {"user_id": user_id}
+        if expires_in_seconds is not None:
+            body["expires_in_seconds"] = expires_in_seconds
+        return self._client._fetch("/v1/sign_in_tokens", method="POST", body=body)

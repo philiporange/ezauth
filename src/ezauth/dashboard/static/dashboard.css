@@ -123,17 +123,24 @@ canvas#bg {
   margin-bottom: 10px;
 }
 
+.sidebar-identity .logout-form { margin: 0; }
+
 .sidebar-identity .logout {
   display: block;
+  font-family: inherit;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
   text-decoration: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
-.sidebar-identity .logout:hover { color: var(--ink); }
+.sidebar-identity .logout:hover { color: var(--ink); background: none; }
 
 /* ── Content ─────────────────────────────────────────────── */
 

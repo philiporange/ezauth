@@ -5,6 +5,7 @@ import { Sessions } from './sessions.js';
 import { Tables } from './tables.js';
 import { Buckets } from './buckets.js';
 import { Storage } from './storage.js';
+import { argon2id, solveChallenge } from './hashcash.js';
 
 class EZAuth extends BaseClient {
   constructor(config = {}) {
@@ -18,4 +19,4 @@ class EZAuth extends BaseClient {
   }
 }
 
-export { EZAuth, EZAuthError };
+export { EZAuth, EZAuthError, argon2id, solveChallenge };

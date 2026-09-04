@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block title %}Confirm Sign In{% endblock %}
+{% block header_subtitle %}<p>Confirm it was you</p>{% endblock %}
+{% block content %}
+    <p class="auth-description">Continue to finish signing in to {{ app_name }}.</p>
+
+    <form method="post" action="/v1/email/verify">
+        <input type="hidden" name="token" value="{{ token }}">
+        <button type="submit" class="btn btn-primary">Continue</button>
+    </form>
+
+    <p class="auth-muted">
+        If you did not request this, close this page and the link will expire on its own.
+    </p>
+{% endblock %}

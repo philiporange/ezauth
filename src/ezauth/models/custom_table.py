@@ -17,11 +17,11 @@ class CustomTable(Base, UUIDPrimaryKey, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    columns: Mapped[list["CustomColumn"]] = relationship(
+    columns: Mapped[list["CustomColumn"]] = relationship(  # noqa: F821
         back_populates="table", cascade="all, delete-orphan",
         order_by="CustomColumn.position",
     )
-    rows: Mapped[list["CustomRow"]] = relationship(
+    rows: Mapped[list["CustomRow"]] = relationship(  # noqa: F821
         back_populates="table", cascade="all, delete-orphan",
     )
 

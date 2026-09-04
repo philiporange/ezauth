@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from ezauth.config import settings
 from ezauth.db.base import Base
@@ -26,11 +26,27 @@ async def test_engine():
 
 @pytest_asyncio.fixture
 async def db(test_engine):
-    session_factory = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
-    async with session_factory() as session:
-        async with session.begin():
+    """A session whose writes are always rolled back.
+
+    The session is bound to an outer transaction on a dedicated connection and
+    joins it as a savepoint, so a commit inside the code under test releases a
+    savepoint rather than persisting anything. Rolling the outer transaction
+    back at teardown leaves the database exactly as the test found it, which is
+    what keeps tests independent of the order they run in.
+    """
+    async with test_engine.connect() as connection:
+        transaction = await connection.begin()
+        session = AsyncSession(
+            bind=connection,
+            expire_on_commit=False,
+            join_transaction_mode="create_savepoint",
+        )
+        try:
             yield session
-        await session.rollback()
+        finally:
+            await session.close()
+            if transaction.is_active:
+                await transaction.rollback()
 
 
 @pytest_asyncio.fixture
@@ -86,11 +102,52 @@ async def user(db: AsyncSession, app: Application):
 
 
 @pytest_asyncio.fixture
-async def client(app):
-    """AsyncClient for API testing — requires live DB+Redis, not for unit tests."""
+async def client(db, redis, app):
+    """AsyncClient wired to the test database and a fake Redis.
+
+    The database session and Redis dependencies are overridden rather than
+    connecting to live infrastructure, and the lifespan is not run, so route
+    behaviour can be exercised end to end without external services.
+    """
+    from ezauth.dependencies import get_db, get_redis_dep
     from ezauth.main import create_app
 
     fastapi_app = create_app()
+    fastapi_app.state.s3 = None
+
+    async def _override_db():
+        yield db
+
+    async def _override_redis():
+        return redis
+
+    fastapi_app.dependency_overrides[get_db] = _override_db
+    fastapi_app.dependency_overrides[get_redis_dep] = _override_redis
+
     transport = ASGITransport(app=fastapi_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(
+        transport=transport,
+        base_url="https://localhost",
+        headers={"X-Publishable-Key": app.publishable_key},
+    ) as c:
         yield c
+    fastapi_app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(autouse=True)
+def no_outbound_mail(monkeypatch):
+    """Keep tests from reaching SES; record what would have been sent."""
+    sent = []
+
+    async def _capture(self, template, to, subject, context):
+        sent.append(
+            {"template": template, "to": to, "subject": subject, "context": context}
+        )
+
+    monkeypatch.setattr("ezauth.services.mail.MailService.send_template", _capture)
+    return sent
+
+
+@pytest_asyncio.fixture
+def sent_mail(no_outbound_mail):
+    return no_outbound_mail

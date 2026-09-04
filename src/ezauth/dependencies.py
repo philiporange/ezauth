@@ -1,3 +1,21 @@
+"""FastAPI dependencies for database sessions, application resolution and auth.
+
+Three kinds of caller reach the API and each is resolved here. A frontend
+caller presents a publishable key (or arrives on a verified custom domain) plus
+a session cookie or bearer access token; a backend caller presents a secret key;
+a dashboard administrator presents an admin JWT signed with the application's
+own key. `resolve_app_auth` accepts any of them and reports which it was, so
+route handlers can apply the right scope.
+
+Session tokens are verified against the application's public key and then, when
+`session_revocation_check` is on, against the sessions table, so logout and
+revocation take effect immediately rather than when the short-lived JWT
+expires. Admin JWTs are additionally checked for the issuer and for a `jti`
+that has not been placed on the Redis deny-list by an admin logout. Public keys
+are derived once per application key id and cached, since deriving one from the
+stored PEM on every request is expensive.
+"""
+
 import uuid
 from dataclasses import dataclass
 from typing import Annotated
@@ -11,10 +29,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ezauth.config import settings
+from ezauth.cookies import session_cookie_name
 from ezauth.db.engine import async_session_factory
 from ezauth.db.redis import get_redis as _get_redis
 from ezauth.models.application import Application
 from ezauth.models.domain import Domain
+from ezauth.services import keys as key_service
+from ezauth.services.sessions import is_session_active
+
+ADMIN_TOKEN_ISSUER = "ezauth-admin"
+ADMIN_DENYLIST_PREFIX = "admin_jti_revoked"
+
+# Derived public keys, keyed by the application's jwk_kid.
+_public_key_cache: dict[str, str] = {}
 
 
 async def get_db():
@@ -33,6 +60,46 @@ async def get_redis_dep() -> aioredis.Redis:
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 RedisDep = Annotated[aioredis.Redis, Depends(get_redis_dep)]
+
+
+def public_pem_for_key(kid: str, private_pem: str) -> str:
+    """Public key PEM for a signing key, derived once per key id."""
+    cached = _public_key_cache.get(kid)
+    if cached is not None:
+        return cached
+
+    private_key = load_pem_private_key(private_pem.encode(), password=None)
+    public_pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode()
+    )
+    _public_key_cache[kid] = public_pem
+    return public_pem
+
+
+async def decode_with_app_keys(
+    db: AsyncSession, app: Application, token: str, **decode_kwargs
+) -> dict | None:
+    """Decode a token against any key the application still publishes.
+
+    A token signed just before a rotation must keep verifying, so every
+    non-dropped key is tried rather than only the active one.
+    """
+    for key in await key_service.verification_keys(db, app):
+        try:
+            return jwt.decode(
+                token,
+                public_pem_for_key(key.kid, key.private_pem),
+                algorithms=["RS256"],
+                **decode_kwargs,
+            )
+        except JWTError:
+            continue
+    return None
 
 
 async def resolve_application(
@@ -71,8 +138,8 @@ async def resolve_application(
 AppDep = Annotated[Application, Depends(resolve_application)]
 
 
-async def _try_admin_jwt(db: DbSession, token: str) -> Application | None:
-    """Try to decode a token as an admin JWT. Returns Application if valid, None otherwise."""
+async def _try_admin_jwt(db: AsyncSession, token: str) -> Application | None:
+    """Decode a token as an admin JWT, returning its Application when valid."""
     try:
         unverified = jwt.get_unverified_claims(token)
     except JWTError:
@@ -83,22 +150,29 @@ async def _try_admin_jwt(db: DbSession, token: str) -> Application | None:
         app_id = uuid.UUID(unverified["aud"])
     except (ValueError, TypeError):
         return None
+
     result = await db.execute(select(Application).where(Application.id == app_id))
     app = result.scalars().first()
     if app is None:
         return None
-    private_key = load_pem_private_key(app.jwk_private_pem.encode(), password=None)
-    public_key = private_key.public_key()
-    public_pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode()
+
+    payload = await decode_with_app_keys(
+        db, app, token, audience=str(app.id), issuer=ADMIN_TOKEN_ISSUER
+    )
+    if payload is None or not payload.get("admin"):
+        return None
+
+    jti = payload.get("jti")
+    if not jti:
+        return None
     try:
-        payload = jwt.decode(token, public_pem, algorithms=["RS256"], audience=str(app.id))
-    except JWTError:
+        revoked = await _get_redis().exists(f"{ADMIN_DENYLIST_PREFIX}:{jti}")
+    except Exception:
+        # A Redis outage must not silently widen access.
+        raise HTTPException(status_code=503, detail="Authentication backend unavailable")
+    if revoked:
         return None
-    if not payload.get("admin"):
-        return None
+
     return app
 
 
@@ -112,7 +186,6 @@ async def require_secret_key(
 
     token = authorization[7:]
 
-    # Secret key auth
     if token.startswith("sk_"):
         result = await db.execute(
             select(Application).where(Application.secret_key == token)
@@ -122,7 +195,6 @@ async def require_secret_key(
             raise HTTPException(status_code=401, detail="Invalid secret key")
         return app
 
-    # Admin JWT auth
     app = await _try_admin_jwt(db, token)
     if app is not None:
         return app
@@ -140,49 +212,57 @@ class SessionData:
         self.app_id = app_id
 
 
+def _bearer_session_token(
+    request: Request, authorization: str | None, app: Application
+) -> str | None:
+    """Session token from the cookie, falling back to a non-secret bearer token."""
+    token = request.cookies.get(session_cookie_name(app))
+    if token:
+        return token
+    header = authorization
+    if header is None:
+        header = request.headers.get("authorization", "")
+    if header and header.startswith("Bearer ") and not header[7:].startswith("sk_"):
+        return header[7:]
+    return None
+
+
+async def _verify_session_token(
+    db: AsyncSession, app: Application, token: str
+) -> tuple[uuid.UUID, uuid.UUID]:
+    """Verify a session JWT and confirm the session has not been revoked."""
+    payload = await decode_with_app_keys(db, app, token, audience=str(app.id))
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Invalid session token")
+
+    if payload.get("admin"):
+        raise HTTPException(status_code=401, detail="Invalid session token")
+
+    try:
+        user_id = uuid.UUID(payload["sub"])
+        session_id = uuid.UUID(payload["sid"])
+    except (KeyError, ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid session token")
+
+    if settings.session_revocation_check:
+        if not await is_session_active(db, session_id=session_id, app_id=app.id):
+            raise HTTPException(status_code=401, detail="Session has been revoked")
+
+    return user_id, session_id
+
+
 async def require_session(
     db: DbSession,
     app: AppDep,
     request: Request,
 ) -> SessionData:
-    """Verify session from __session cookie JWT."""
-    cookie_name = settings.session_cookie_name
-    token = request.cookies.get(cookie_name)
-
-    if not token:
-        # Also check Authorization header
-        auth_header = request.headers.get("authorization", "")
-        if auth_header.startswith("Bearer ") and not auth_header[7:].startswith("sk_"):
-            token = auth_header[7:]
-
+    """Verify the session cookie or bearer access token for the resolved app."""
+    token = _bearer_session_token(request, None, app)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    private_key = load_pem_private_key(app.jwk_private_pem.encode(), password=None)
-    public_key = private_key.public_key()
-    public_pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode()
-
-    try:
-        payload = jwt.decode(
-            token,
-            public_pem,
-            algorithms=["RS256"],
-            audience=str(app.id),
-        )
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid session token")
-
-    try:
-        return SessionData(
-            user_id=uuid.UUID(payload["sub"]),
-            session_id=uuid.UUID(payload["sid"]),
-            app_id=app.id,
-        )
-    except (KeyError, ValueError, TypeError):
-        raise HTTPException(status_code=401, detail="Invalid session token")
+    user_id, session_id = await _verify_session_token(db, app, token)
+    return SessionData(user_id=user_id, session_id=session_id, app_id=app.id)
 
 
 SessionDep = Annotated[SessionData, Depends(require_session)]
@@ -205,8 +285,7 @@ async def resolve_app_auth(
     authorization: str | None = Header(None),
     x_publishable_key: str | None = Header(None, alias="X-Publishable-Key"),
 ) -> AppAuth:
-    """Accept either secret key (admin) or publishable key + session (user)."""
-    # 1. Secret key auth → admin
+    """Accept either secret key or admin JWT (admin), or publishable key plus session (user)."""
     if authorization and authorization.startswith("Bearer sk_"):
         secret_key = authorization[7:]
         result = await db.execute(
@@ -217,7 +296,6 @@ async def resolve_app_auth(
             raise HTTPException(status_code=401, detail="Invalid secret key")
         return AppAuth(app=app)
 
-    # 1b. Admin JWT auth → admin
     if (
         authorization
         and authorization.startswith("Bearer ")
@@ -227,41 +305,14 @@ async def resolve_app_auth(
         if admin_app is not None:
             return AppAuth(app=admin_app)
 
-    # 2. Publishable key / host domain + session → user
     app = await resolve_application(db, request, x_publishable_key)
 
-    cookie_name = settings.session_cookie_name
-    token = request.cookies.get(cookie_name)
-    if not token:
-        auth_header = (authorization or "")
-        if auth_header.startswith("Bearer ") and not auth_header[7:].startswith("sk_"):
-            token = auth_header[7:]
-
+    token = _bearer_session_token(request, authorization, app)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    private_key = load_pem_private_key(app.jwk_private_pem.encode(), password=None)
-    public_key = private_key.public_key()
-    public_pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode()
-
-    try:
-        payload = jwt.decode(
-            token, public_pem, algorithms=["RS256"], audience=str(app.id),
-        )
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid session token")
-
-    try:
-        return AppAuth(
-            app=app,
-            user_id=uuid.UUID(payload["sub"]),
-            session_id=uuid.UUID(payload["sid"]),
-        )
-    except (KeyError, ValueError, TypeError):
-        raise HTTPException(status_code=401, detail="Invalid session token")
+    user_id, session_id = await _verify_session_token(db, app, token)
+    return AppAuth(app=app, user_id=user_id, session_id=session_id)
 
 
 AppAuthDep = Annotated[AppAuth, Depends(resolve_app_auth)]

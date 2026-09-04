@@ -41,6 +41,7 @@
 <section>
     <h3>Settings</h3>
     <form method="post" action="/dashboard/tenants/{{ tenant.id }}" style="max-width:420px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label for="name">Name</label>
         <input type="text" id="name" name="name" value="{{ tenant.name }}" required>
         <div class="form-actions">
@@ -53,7 +54,8 @@
     <h3>Danger zone</h3>
     <p>Deleting a tenant permanently removes all of its applications, users, sessions and stored objects.</p>
     <form method="post" action="/dashboard/tenants/{{ tenant.id }}/delete"
-          onsubmit="return confirm('Delete tenant {{ tenant.name }} and everything in it?')">
+          data-confirm="Delete tenant {{ tenant.name }} and everything in it?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit" class="btn-danger">Delete tenant</button>
     </form>
 </div>

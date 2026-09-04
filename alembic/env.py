@@ -1,20 +1,25 @@
 import asyncio
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from alembic import context
 from ezauth.config import settings
 from ezauth.db.base import Base
 from ezauth.models import (  # noqa: F401 — ensure all models registered
     application,
+    application_key,
     audit_log,
     auth_attempt,
+    bucket,
     custom_column,
     custom_row,
     custom_table,
     domain,
+    email_template,
+    oauth_identity,
     session,
+    storage_object,
     tenant,
     user,
 )

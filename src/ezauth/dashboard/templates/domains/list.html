@@ -8,6 +8,8 @@
     </div>
 </div>
 
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
 {% if app_id %}
 <div class="form-card">
     <h3>Add a custom domain</h3>
@@ -20,6 +22,7 @@
         <li>Wait for DNS propagation, then click <strong>Verify</strong></li>
     </ol>
     <form method="post" action="/dashboard/domains" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="app_id" value="{{ app_id }}">
         <div style="flex:2">
             <label for="domain">Domain</label>

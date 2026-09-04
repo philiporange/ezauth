@@ -26,14 +26,16 @@ class Application(Base, UUIDPrimaryKey, TimestampMixin):
     environment: Mapped[Environment] = mapped_column(
         Enum(Environment, name="environment_enum"), nullable=False, default=Environment.dev
     )
-    publishable_key: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    publishable_key: Mapped[str] = mapped_column(String(64), unique=True)
     secret_key: Mapped[str] = mapped_column(String(128), nullable=False)
     primary_domain: Mapped[str | None] = mapped_column(String(255))
     allowed_origins: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
     email_from_name: Mapped[str | None] = mapped_column(String(255))
     email_from_address: Mapped[str | None] = mapped_column(String(255))
     passwords_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
-    verification_method: Mapped[str] = mapped_column(String(10), nullable=False, server_default="code")
+    verification_method: Mapped[str] = mapped_column(
+        String(10), nullable=False, server_default="code"
+    )
     settings_json: Mapped[dict | None] = mapped_column(JSONB, default=dict)
     jwk_private_pem: Mapped[str] = mapped_column(Text, nullable=False)
     jwk_kid: Mapped[str] = mapped_column(String(64), nullable=False)

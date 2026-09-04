@@ -9,11 +9,10 @@ import uuid
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth
+from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth, templates
 from ezauth.dashboard.scope import (
     get_owned_app,
     get_owned_tenant,
@@ -27,7 +26,6 @@ from ezauth.models.user import User
 from ezauth.services.keys import generate_jwk_pair, generate_publishable_key, generate_secret_key
 
 router = APIRouter()
-templates = Jinja2Templates(directory="src/ezauth/dashboard/templates")
 
 
 @router.get("", response_class=HTMLResponse)

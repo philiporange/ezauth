@@ -75,12 +75,12 @@ cp .env.example .env
 alembic upgrade head
 
 <span class="cm"># Start the server</span>
-uvicorn ezauth.main:app --reload --port 8000</code></pre>
+uvicorn ezauth.main:app --reload --port 8000 --proxy-headers</code></pre>
 
   <p>The API is now running at <code>http://localhost:8000</code>. The interactive API docs are at <code>http://localhost:8000/docs</code>.</p>
 
   <h2>3. Create a Tenant &amp; Application</h2>
-  <p>Open the admin dashboard at <code>http://localhost:8000/dashboard</code> and sign in with your <code>DASHBOARD_SECRET_KEY</code>. Then:</p>
+  <p>Open the admin dashboard at <code>http://localhost:8000/dashboard</code>. There is no shared dashboard password: enter an address listed in <code>DASHBOARD_ADMIN_EMAILS</code> (or an application&rsquo;s <code>owner_email</code>) and ezAuth emails you a single-use login code. Then:</p>
   <ol>
     <li>Create a <strong>Tenant</strong> (e.g., "My Company")</li>
     <li>Create an <strong>Application</strong> within the tenant (e.g., "My App - Dev")</li>

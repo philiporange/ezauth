@@ -1,26 +1,32 @@
 """Dashboard tenant management: list, create, rename, delete.
 
-All queries are scoped to the logged-in owner via dashboard.scope; tenants
-created here are stamped with the creator's email as owner_email.
+Tenants created here are stamped with the creator's email as owner_email.
+Listing and viewing use the read scope, which also covers people who own an
+application inside the tenant. Renaming and deleting take the whole tenant with
+them, so they use the administered scope: the tenant's own owner, or a
+superadmin.
 """
 
 import uuid
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth
-from ezauth.dashboard.scope import get_owned_tenant, scope_applications, scope_tenants
+from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth, templates
+from ezauth.dashboard.scope import (
+    get_administered_tenant,
+    get_owned_tenant,
+    scope_applications,
+    scope_tenants,
+)
 from ezauth.dependencies import get_db
 from ezauth.models.application import Application
 from ezauth.models.tenant import Tenant
 from ezauth.models.user import User
 
 router = APIRouter()
-templates = Jinja2Templates(directory="src/ezauth/dashboard/templates")
 
 
 @router.get("", response_class=HTMLResponse)
@@ -112,7 +118,7 @@ async def update_tenant(
     db: AsyncSession = Depends(get_db),
     auth: DashboardAuth = Depends(require_dashboard_auth),
 ):
-    tenant = await get_owned_tenant(db, auth, tenant_id)
+    tenant = await get_administered_tenant(db, auth, tenant_id)
     if not tenant:
         return HTMLResponse("Not found", status_code=404)
     form = await request.form()
@@ -130,7 +136,7 @@ async def delete_tenant(
     db: AsyncSession = Depends(get_db),
     auth: DashboardAuth = Depends(require_dashboard_auth),
 ):
-    tenant = await get_owned_tenant(db, auth, tenant_id)
+    tenant = await get_administered_tenant(db, auth, tenant_id)
     if not tenant:
         return HTMLResponse("Not found", status_code=404)
     await db.delete(tenant)

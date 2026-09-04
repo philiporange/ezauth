@@ -1,17 +1,49 @@
+import { solveChallenge } from './hashcash.js';
+
 export class Auth {
   constructor(client) {
     this._client = client;
   }
 
-  signUp({ email, password, redirectUrl } = {}) {
+  /** Request a hashcash proof-of-work challenge. */
+  requestChallenge() {
+    return this._client._fetch('/v1/challenges', {
+      method: 'POST',
+      auth: 'publishable',
+    });
+  }
+
+  /**
+   * Solve a challenge from `requestChallenge()`, returning the
+   * `{ challenge, nonce }` proof that signup expects. Uses the solver passed
+   * to the client constructor when one was given.
+   */
+  solveChallenge(challenge) {
+    return (this._client.hashcashSolver || solveChallenge)(challenge);
+  }
+
+  /**
+   * Create a user. Proof of work is on by default on the server, so unless a
+   * `hashcash` proof is supplied one is requested and solved first. Pass
+   * `solveHashcash: false` against a server that has it turned off.
+   */
+  async signUp({ email, password, redirectUrl, hashcash, solveHashcash = true } = {}) {
+    const body = {
+      email,
+      password: password || null,
+      redirect_url: redirectUrl || null,
+    };
+
+    if (hashcash) {
+      body.hashcash = hashcash;
+    } else if (solveHashcash) {
+      body.hashcash = await this.solveChallenge(await this.requestChallenge());
+    }
+
     return this._client._fetch('/v1/signups', {
       method: 'POST',
       auth: 'publishable',
-      body: {
-        email,
-        password: password || null,
-        redirect_url: redirectUrl || null,
-      },
+      body,
     });
   }
 
@@ -32,6 +64,7 @@ export class Auth {
     return this._client._fetch('/v1/sessions/logout', {
       method: 'POST',
       auth: 'publishable',
+      bearer: true,
     });
   }
 
@@ -44,7 +77,7 @@ export class Auth {
   }
 
   getSession() {
-    return this._client._fetch('/v1/me', { auth: 'publishable' });
+    return this._client._fetch('/v1/me', { auth: 'publishable', bearer: true });
   }
 
   refreshToken(refreshToken) {

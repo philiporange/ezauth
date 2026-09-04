@@ -12,7 +12,7 @@ git clone <repository-url>
 cd ezauth
 cp .env.example .env
 
-# Edit .env with your settings (especially SES_SENDER and DASHBOARD_SECRET_KEY)
+# Edit .env with your settings (especially SES_SENDER and DASHBOARD_ADMIN_EMAILS)
 # Then install dependencies
 pip install -e ".[dev]"
 
@@ -37,7 +37,7 @@ curl http://localhost:8000/health
 {"status":"ok"}
 ```
 
-Access the admin dashboard at `http://localhost:8000/dashboard` using the `DASHBOARD_SECRET_KEY` from your `.env` file.
+Access the admin dashboard at `http://localhost:8000/dashboard`. The dashboard has no shared password. Sign in with an address listed in `DASHBOARD_ADMIN_EMAILS`, or with the `owner_email` of an application, and ezAuth emails a single-use code to that address.
 
 ## Installation
 
@@ -73,7 +73,7 @@ SES_SENDER=noreply@yourdomain.com
 SES_REGION=us-east-1
 
 # Required: Dashboard password
-DASHBOARD_SECRET_KEY=your-secure-random-key-here
+DASHBOARD_ADMIN_EMAILS=you@example.com
 
 # Optional: Redis (defaults to localhost:6379)
 REDIS_URL=redis://localhost:6379/0
@@ -131,7 +131,7 @@ For production deployment, see the Deployment section below.
 
 **1. Access the dashboard:**
 
-Navigate to `http://localhost:8000/dashboard` and log in with your `DASHBOARD_SECRET_KEY`.
+Navigate to `http://localhost:8000/dashboard` and request a login code. The dashboard has no shared password. Sign in with an address listed in `DASHBOARD_ADMIN_EMAILS`, or with the `owner_email` of an application, and ezAuth emails a single-use code to that address.
 
 **2. Create a tenant:**
 
@@ -788,7 +788,7 @@ HASHCASH_HASH_LEN=32
 
 ```bash
 # Dashboard admin password (required)
-DASHBOARD_SECRET_KEY=change-me-in-production
+DASHBOARD_ADMIN_EMAILS=you@example.com
 ```
 
 ### OAuth (Optional)
@@ -1942,7 +1942,7 @@ User=ezauth
 Group=ezauth
 WorkingDirectory=/opt/ezauth/app
 EnvironmentFile=/opt/ezauth/.env
-ExecStart=/opt/ezauth/venv/bin/uvicorn ezauth.main:create_app --factory --host 127.0.0.1 --port 8001 --workers 4
+ExecStart=/opt/ezauth/venv/bin/uvicorn ezauth.main:create_app --factory --host 127.0.0.1 --port 8001 --workers 4 --proxy-headers --forwarded-allow-ips 127.0.0.1
 Restart=always
 RestartSec=10
 
@@ -2015,7 +2015,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SES_SENDER=${SES_SENDER}
       - SES_REGION=${SES_REGION}
-      - DASHBOARD_SECRET_KEY=${DASHBOARD_SECRET_KEY}
+      - DASHBOARD_ADMIN_EMAILS=${DASHBOARD_ADMIN_EMAILS}
     depends_on:
       - postgres
       - redis
@@ -2064,7 +2064,7 @@ JWT_REFRESH_TOKEN_EXPIRE_DAYS=30
 # Security
 SESSION_COOKIE_SECURE=true
 SESSION_COOKIE_DOMAIN=.yourdomain.com
-DASHBOARD_SECRET_KEY=GENERATE_STRONG_RANDOM_KEY
+DASHBOARD_ADMIN_EMAILS=you@example.com
 
 # Hashcash (recommended for production)
 HASHCASH_ENABLED=true

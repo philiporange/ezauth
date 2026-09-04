@@ -12,6 +12,7 @@
 <div class="form-card">
     <h3>Create a bucket</h3>
     <form method="post" action="/dashboard/buckets" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="app_id" value="{{ app_id }}">
         <div style="flex:2">
             <label for="name">Bucket name</label>

@@ -1,34 +1,41 @@
 """Dashboard storage bucket management: list with usage, create, limits, delete.
 
-All queries are scoped to applications the logged-in owner controls.
+All queries are scoped to applications the logged-in owner controls. Deleting a
+bucket goes through the object storage service so that the stored payloads are
+removed from S3 alongside the metadata rows, rather than being orphaned.
 """
 
 import uuid
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth
+from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth, templates
 from ezauth.dashboard.scope import get_owned_app, owned_app_ids
 from ezauth.dependencies import get_db
 from ezauth.models.bucket import Bucket
 from ezauth.models.storage_object import StorageObject
+from ezauth.services import objects as objects_svc
+from ezauth.services.auth import AuthError
 
 router = APIRouter()
-templates = Jinja2Templates(directory="src/ezauth/dashboard/templates")
 
 
 def _parse_size(value: str | None) -> int | None:
-    """Parse a size string into bytes, or return None if empty/invalid."""
+    """Parse a size limit in bytes, treating anything not positive as unset.
+
+    A zero or negative limit would compare as already exhausted against any
+    usage, silently rejecting every upload to the bucket.
+    """
     if not value or not value.strip():
         return None
     try:
-        return int(value.strip())
+        parsed = int(value.strip())
     except ValueError:
         return None
+    return parsed if parsed > 0 else None
 
 
 async def _get_owned_bucket(
@@ -175,6 +182,14 @@ async def delete_bucket(
     if not bucket:
         return HTMLResponse("Not found", status_code=404)
     app_id = bucket.app_id
-    await db.delete(bucket)
-    await db.flush()
+    try:
+        await objects_svc.delete_bucket(
+            db,
+            getattr(request.app.state, "s3", None),
+            app_id=app_id,
+            bucket_id=bucket.id,
+        )
+    except AuthError as e:
+        status = 503 if e.code in ("storage_unavailable", "storage_error") else 404
+        return HTMLResponse(e.message, status_code=status)
     return RedirectResponse(url=f"/dashboard/buckets?app_id={app_id}", status_code=302)

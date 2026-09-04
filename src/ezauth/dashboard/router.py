@@ -1,3 +1,10 @@
+"""Dashboard route table.
+
+Mounts every dashboard section under `/dashboard`. Authentication and CSRF are
+enforced by the `require_dashboard_auth` dependency the section routers declare,
+not here.
+"""
+
 from fastapi import APIRouter
 
 from ezauth.dashboard import (

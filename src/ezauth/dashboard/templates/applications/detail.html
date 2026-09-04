@@ -30,7 +30,7 @@
             <dt>Secret key</dt>
             <dd>
                 <span class="key-chip">
-                    <span class="key-text secret" onclick="this.classList.toggle('revealed')" title="Click to reveal">{{ app.secret_key }}</span>
+                    <span class="key-text secret" data-reveal title="Click to reveal">{{ app.secret_key }}</span>
                     <button type="button" class="copy-btn" data-copy="{{ app.secret_key }}">Copy</button>
                 </span>
                 <p class="hint">Keep this server-side. Click to reveal.</p>
@@ -46,6 +46,7 @@
 <section>
     <h3>Settings</h3>
     <form method="post" action="/dashboard/applications/{{ app.id }}" style="max-width:720px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="form-grid">
             <div class="field">
                 <label for="name">Name</label>
@@ -103,7 +104,8 @@
     <h3>Danger zone</h3>
     <p>Deleting an application permanently removes its users, sessions, domains and stored objects.</p>
     <form method="post" action="/dashboard/applications/{{ app.id }}/delete"
-          onsubmit="return confirm('Delete application {{ app.name }} and all of its data?')">
+          data-confirm="Delete application {{ app.name }} and all of its data?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit" class="btn-danger">Delete application</button>
     </form>
 </div>

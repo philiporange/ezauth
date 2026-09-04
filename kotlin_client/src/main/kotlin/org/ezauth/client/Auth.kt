@@ -6,15 +6,32 @@ import kotlinx.serialization.json.JsonPrimitive
 /** Frontend auth operations (publishable key). */
 class Auth internal constructor(private val client: BaseClient) {
 
+    /** Request a hashcash proof-of-work challenge. */
+    suspend fun requestChallenge(): ChallengeResponse {
+        val resp = client.fetch("/v1/challenges", method = "POST", auth = AuthMode.PUBLISHABLE)
+        return client.json.decodeFromJsonElement(ChallengeResponse.serializer(), resp!!)
+    }
+
+    /**
+     * Create a user. Proof of work is on by default on the server, so unless
+     * [hashcash] is supplied a challenge is requested and solved first. Pass
+     * `solveHashcash = false` against a server that has it turned off.
+     */
     suspend fun signUp(
         email: String,
         password: String? = null,
         redirectUrl: String? = null,
+        hashcash: HashcashProof? = null,
+        solveHashcash: Boolean = true,
     ): SignUpResponse {
+        val proof = hashcash ?: if (solveHashcash) Hashcash.solve(requestChallenge()) else null
         val body = jsonObject(
             "email" to JsonPrimitive(email),
             "password" to JsonPrimitive(password),
             "redirect_url" to JsonPrimitive(redirectUrl),
+            "hashcash" to proof?.let {
+                client.json.encodeToJsonElement(HashcashProof.serializer(), it)
+            },
         )
         val resp = client.fetch("/v1/signups", method = "POST", body = body, auth = AuthMode.PUBLISHABLE)
         return client.json.decodeFromJsonElement(SignUpResponse.serializer(), resp!!)
@@ -38,7 +55,12 @@ class Auth internal constructor(private val client: BaseClient) {
     }
 
     suspend fun signOut(): SignOutResponse {
-        val resp = client.fetch("/v1/sessions/logout", method = "POST", auth = AuthMode.PUBLISHABLE)
+        val resp = client.fetch(
+            "/v1/sessions/logout",
+            method = "POST",
+            auth = AuthMode.PUBLISHABLE,
+            bearer = true,
+        )
         return client.json.decodeFromJsonElement(SignOutResponse.serializer(), resp!!)
     }
 
@@ -52,7 +74,7 @@ class Auth internal constructor(private val client: BaseClient) {
     }
 
     suspend fun getSession(): UserResponse {
-        val resp = client.fetch("/v1/me", auth = AuthMode.PUBLISHABLE)
+        val resp = client.fetch("/v1/me", auth = AuthMode.PUBLISHABLE, bearer = true)
         return client.json.decodeFromJsonElement(UserResponse.serializer(), resp!!)
     }
 

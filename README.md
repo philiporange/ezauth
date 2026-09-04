@@ -1,4 +1,4 @@
-# EZAuth
+# ezAuth
 
 Multi-tenant authentication service. Drop-in auth for any web app — email signup, magic link sign-in, password auth, JWT sessions, JWKS, cross-domain SSO, and an admin dashboard.
 
@@ -32,18 +32,21 @@ Built with FastAPI, PostgreSQL, Redis, and AWS SES.
 ```bash
 cd ezauth
 cp .env.example .env
-# Edit .env with your config (especially SES_SENDER, DASHBOARD_SECRET_KEY)
+# Edit .env: at minimum POSTGRES_PASSWORD, SES_SENDER and DASHBOARD_ADMIN_EMAILS
 
 pip install -e ".[dev]"
 ```
 
+`.env.example` documents every setting with its default.
+
 ### 2. Start infrastructure
 
 ```bash
-docker compose up -d
+docker compose up -d postgres redis
 ```
 
-This starts PostgreSQL 16 on port 5432 and Redis 7 on port 6379.
+This starts PostgreSQL 16 and Redis 7, both bound to `127.0.0.1` on the ports
+named by `POSTGRES_PORT` and `REDIS_PORT`.
 
 ### 3. Run migrations
 
@@ -66,7 +69,8 @@ curl http://localhost:8000/health
 
 ### 5. Access the dashboard
 
-Navigate to `http://localhost:8000/dashboard` and log in with the `DASHBOARD_SECRET_KEY` from your `.env`.
+Navigate to `http://localhost:8000/dashboard` and sign in with an email listed
+in `DASHBOARD_ADMIN_EMAILS`; the dashboard emails a one-time code.
 
 From the dashboard you can:
 - Create tenants and applications
@@ -74,6 +78,27 @@ From the dashboard you can:
 - Add and verify custom domains
 - Browse users
 - Edit email templates
+
+## Running in Docker
+
+`docker compose up -d --build` runs the whole stack: PostgreSQL, Redis and the
+application. The app service applies `alembic upgrade head` before uvicorn
+starts, every service has a healthcheck, and each published port is bound to
+`127.0.0.1`. Credentials come from `.env`, never from the compose file.
+
+The image builds from `Dockerfile`: a slim Python base, runtime dependencies
+only, and an unprivileged `ezauth` user. Uvicorn runs with `--proxy-headers`
+so that per-IP rate limiting sees the real client address rather than the
+reverse proxy's.
+
+## Production configuration
+
+Set `ENVIRONMENT=production` and the service validates its own configuration at
+startup. It refuses to boot when `DATABASE_URL`, `REDIS_URL`, `SES_SENDER` or
+`PUBLIC_BASE_URL` is still at its development default, when `PUBLIC_BASE_URL`
+is not https, or when `SESSION_COOKIE_SECURE` is off. Behind a reverse proxy,
+run uvicorn with `--proxy-headers --forwarded-allow-ips <proxy address>`; see
+`DEPLOYMENT.md` for the systemd unit, backups, log rotation and JWK rotation.
 
 ## Architecture
 
@@ -101,7 +126,8 @@ ezauth/
 │   └── python-server/       # Python server SDK (pip-installable)
 ├── tests/                   # pytest + pytest-asyncio test suite
 ├── alembic/                 # Database migrations
-├── docker-compose.yml       # PostgreSQL 16 + Redis 7
+├── docker-compose.yml       # App + PostgreSQL 16 + Redis 7
+├── Dockerfile               # Production image for the app service
 └── pyproject.toml
 ```
 
@@ -314,7 +340,7 @@ const gk = init({ publishableKey: 'pk_test_...', authDomain: '...' });
 
 ## Python Server SDK
 
-Verify EZAuth JWTs in your FastAPI/Starlette backend.
+Verify ezAuth JWTs in your FastAPI/Starlette backend.
 
 ### Install
 
@@ -359,7 +385,7 @@ async def get_auth(request):
 
 ## CLI Tool
 
-Command-line client for interacting with an EZAuth instance. Handles hashcash proof-of-work automatically.
+Command-line client for interacting with an ezAuth instance. Handles hashcash proof-of-work automatically.
 
 ### Install
 
@@ -391,8 +417,6 @@ Configuration is stored in `~/.config/ezauth/config.json`.
 
 ## Database Schema
 
-Seven tables with proper indexes and constraints:
-
 | Table | Purpose |
 |-------|---------|
 | `tenants` | Top-level accounts (organizations) |
@@ -401,26 +425,36 @@ Seven tables with proper indexes and constraints:
 | `auth_attempts` | Ephemeral token records (signup, verify, magic link) — hashed, single-use |
 | `sessions` | Active sessions (refresh token hash, revocation, versioning) |
 | `domains` | Custom domains per app (CNAME verification) |
+| `oauth_identities` | Provider identities linked to a user (Google, Apple) |
+| `custom_tables`, `custom_columns`, `custom_rows` | User-defined tables per app |
+| `buckets`, `storage_objects` | Object storage metadata backing S3 |
 | `audit_log` | Append-only event log (signups, sign-ins, logouts, etc.) |
+
+Schema changes go through Alembic. `alembic upgrade head` brings a database to
+the current revision and is the first step of every deploy.
 
 ## Configuration
 
-All settings via environment variables (see `.env.example`):
+All settings come from environment variables. `.env.example` is the complete
+list with defaults and descriptions; the ones that matter most:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | — | PostgreSQL connection string (`postgresql+asyncpg://...`) |
+| `ENVIRONMENT` | `development` | `production` turns on the startup configuration checks |
+| `PUBLIC_BASE_URL` | `http://localhost:8000` | Origin used to build links in email and OAuth redirects |
+| `DATABASE_URL` | dev credentials | PostgreSQL connection string (`postgresql+asyncpg://...`) |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection string |
 | `SES_REGION` | `us-east-1` | AWS SES region |
-| `SES_SENDER` | — | Default sender email address |
-| `SES_SENDER_NAME` | `EZAuth` | Default sender display name |
+| `SES_SENDER` | `do-not-reply@example.com` | Default sender email address |
+| `SES_SENDER_NAME` | `ezAuth` | Default sender display name |
 | `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | JWT lifetime |
 | `JWT_REFRESH_TOKEN_EXPIRE_DAYS` | `30` | Refresh token lifetime |
-| `SESSION_COOKIE_NAME` | `__session` | Cookie name for JWT |
-| `DASHBOARD_SECRET_KEY` | — | Password for dashboard login |
+| `SESSION_COOKIE_SECURE` | `true` | Must stay on in production |
+| `DASHBOARD_ADMIN_EMAILS` | — | Comma-separated emails granted superadmin dashboard access |
+| `DASHBOARD_ALLOWED_ORIGINS` | — | Comma-separated origins allowed to call `/dashboard` with credentials |
 | `HASHCASH_ENABLED` | `true` | Require proof-of-work on signup |
 | `HASHCASH_DIFFICULTY` | `5` | Leading zero bits required (~32 attempts avg) |
-| `HASHCASH_CHALLENGE_TTL` | `300` | Challenge expiry in seconds |
+| `AUDIT_LOG_RETENTION_DAYS` | `365` | Retention for the background cleanup task |
 
 ## Security Design
 
@@ -436,14 +470,19 @@ All settings via environment variables (see `.env.example`):
 ## Testing
 
 ```bash
-# Run unit tests (no DB/Redis required)
-pytest tests/test_services/ -v
-
-# Run all tests (requires PostgreSQL + Redis)
-pytest -v
+python -m pytest -q
 ```
 
-The test suite uses `pytest-asyncio`, `fakeredis` for Redis tests, and `factory-boy` for test data.
+Tests that need PostgreSQL are skipped when no database is reachable, so the
+suite runs without one; start the compose services first to exercise them all.
+
+```bash
+docker compose up -d postgres redis
+python -m pytest -q
+```
+
+The suite uses `pytest-asyncio`, `fakeredis` for Redis, and `factory-boy` for
+test data.
 
 ## Development
 
@@ -455,8 +494,8 @@ pip install -e ".[dev]"
 uvicorn ezauth.main:create_app --factory --reload
 
 # Lint
-ruff check src/ tests/
-ruff format src/ tests/
+python -m ruff check src/ tests/
+python -m ruff format src/ tests/
 
 # Create a new migration
 alembic revision --autogenerate -m "description"
@@ -477,7 +516,3 @@ alembic revision --autogenerate -m "description"
 | Browser SDK | Plain JS + Rollup |
 | Server SDK | python-jose + httpx |
 | CLI | click + httpx + argon2-cffi + rich |
-
-## License
-
-Private — all rights reserved.

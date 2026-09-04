@@ -9,7 +9,10 @@
 </div>
 <ul class="template-list">
     {% for name in template_files %}
-    <li><a href="/dashboard/email-templates/{{ name }}">{{ name }}</a></li>
+    <li>
+        <a href="/dashboard/email-templates/{{ name }}">{{ name }}</a>
+        {% if name in overridden %}<span class="badge">Overridden</span>{% endif %}
+    </li>
     {% endfor %}
 </ul>
 {% endblock %}

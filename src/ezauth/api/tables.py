@@ -1,9 +1,26 @@
+"""HTTP routes for custom per-application tables.
+
+Table and column definitions are administered with the application secret key
+or an admin JWT; end users may only read and write row data, and every such
+request is scoped to the caller's own user id. Because there is no per-table
+permission column, end users cannot enumerate or inspect table definitions at
+all — listing and detail are admin-only — and rows they create or read always
+carry their own user id. An admin naming a target user has that user checked
+against the calling application first.
+
+Service errors carry a code that is mapped to a status here, so malformed
+filters, unparseable cursors and values that do not fit their column type come
+back as 4xx rather than surfacing as a 500 from the database driver.
+"""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException
+from sqlalchemy import select
 
 from ezauth.config import settings
 from ezauth.dependencies import AppAuthDep, DbSession, RedisDep
+from ezauth.models.user import User
 from ezauth.schemas.tables import (
     ColumnResponse,
     CreateColumnRequest,
@@ -24,10 +41,47 @@ from ezauth.services.auth import AuthError
 
 router = APIRouter()
 
+_STATUS_BY_CODE = {
+    "column_exists": 409,
+    "invalid_cursor": 400,
+    "invalid_filter": 400,
+    "invalid_sort": 400,
+    "not_found": 404,
+    "row_limit_exceeded": 413,
+    "storage_limit_exceeded": 413,
+    "table_exists": 409,
+    "validation_error": 422,
+}
+
+
+def _http_error(exc: AuthError) -> HTTPException:
+    return HTTPException(status_code=_STATUS_BY_CODE.get(exc.code, 400), detail=exc.message)
+
 
 def _require_admin(auth: AppAuthDep) -> None:
     if not auth.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
+
+
+async def _resolve_row_user(
+    db: DbSession,
+    auth: AppAuthDep,
+    user_id: uuid.UUID | None,
+) -> uuid.UUID | None:
+    """Return the user id rows are scoped to, validating an admin-supplied id."""
+    if not auth.is_admin:
+        return auth.user_id
+    if user_id is None:
+        return None
+
+    result = await db.execute(
+        select(User.id).where(User.id == user_id, User.app_id == auth.app.id)
+    )
+    if result.scalar() is None:
+        raise HTTPException(
+            status_code=400, detail="user_id does not belong to this application",
+        )
+    return user_id
 
 
 # -- Tables --
@@ -57,9 +111,7 @@ async def create_table(
         )
         return table
     except AuthError as e:
-        if e.code == "table_exists":
-            raise HTTPException(status_code=409, detail=e.message)
-        raise HTTPException(status_code=400, detail=e.message)
+        raise _http_error(e)
 
 
 @router.get("/tables", response_model=TableListResponse)
@@ -67,6 +119,7 @@ async def list_tables(
     db: DbSession,
     auth: AppAuthDep,
 ):
+    _require_admin(auth)
     tables, total = await tables_svc.list_tables(db, app_id=auth.app.id)
     return TableListResponse(
         tables=[TableResponse.model_validate(t) for t in tables],
@@ -96,11 +149,12 @@ async def get_table(
     db: DbSession,
     auth: AppAuthDep,
 ):
+    _require_admin(auth)
     try:
         table = await tables_svc.get_table(db, app_id=auth.app.id, table_id=table_id)
         return table
     except AuthError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise _http_error(e)
 
 
 @router.delete("/tables/{table_id}", status_code=204)
@@ -113,7 +167,7 @@ async def delete_table(
     try:
         await tables_svc.delete_table(db, app_id=auth.app.id, table_id=table_id)
     except AuthError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise _http_error(e)
 
 
 # -- Columns --
@@ -139,11 +193,7 @@ async def add_column(
         )
         return col
     except AuthError as e:
-        if e.code in ("column_exists", "table_exists"):
-            raise HTTPException(status_code=409, detail=e.message)
-        if e.code == "not_found":
-            raise HTTPException(status_code=404, detail=e.message)
-        raise HTTPException(status_code=400, detail=e.message)
+        raise _http_error(e)
 
 
 @router.patch("/tables/{table_id}/columns/{column_id}", response_model=ColumnResponse)
@@ -156,12 +206,13 @@ async def update_column(
 ):
     _require_admin(auth)
     try:
+        provided = body.model_fields_set
         kwargs: dict = {}
         if body.name is not None:
             kwargs["name"] = body.name
         if body.required is not None:
             kwargs["required"] = body.required
-        if body.default_value is not None:
+        if "default_value" in provided:
             kwargs["default_value"] = body.default_value
         if body.position is not None:
             kwargs["position"] = body.position
@@ -175,11 +226,7 @@ async def update_column(
         )
         return col
     except AuthError as e:
-        if e.code == "column_exists":
-            raise HTTPException(status_code=409, detail=e.message)
-        if e.code == "not_found":
-            raise HTTPException(status_code=404, detail=e.message)
-        raise HTTPException(status_code=400, detail=e.message)
+        raise _http_error(e)
 
 
 @router.delete("/tables/{table_id}/columns/{column_id}", status_code=204)
@@ -195,7 +242,7 @@ async def delete_column(
             db, app_id=auth.app.id, table_id=table_id, column_id=column_id,
         )
     except AuthError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise _http_error(e)
 
 
 # -- Rows --
@@ -210,10 +257,7 @@ async def insert_row(
 ):
     limit = settings.custom_tables_storage_limit_bytes
     # Users auto-get their own user_id; admins can optionally specify one
-    if auth.is_admin:
-        row_user_id = body.user_id
-    else:
-        row_user_id = auth.user_id
+    row_user_id = await _resolve_row_user(db, auth, body.user_id)
     try:
         row = await tables_svc.insert_row(
             db, redis,
@@ -225,13 +269,7 @@ async def insert_row(
         )
         return row
     except AuthError as e:
-        if e.code in ("storage_limit_exceeded", "row_limit_exceeded"):
-            raise HTTPException(status_code=413, detail=e.message)
-        if e.code == "validation_error":
-            raise HTTPException(status_code=422, detail=e.message)
-        if e.code == "not_found":
-            raise HTTPException(status_code=404, detail=e.message)
-        raise HTTPException(status_code=400, detail=e.message)
+        raise _http_error(e)
 
 
 @router.post("/tables/{table_id}/rows/query", response_model=RowListResponse)
@@ -246,7 +284,7 @@ async def query_rows(
     try:
         filter_spec = None
         if body.filter:
-            filter_spec = body.filter.model_dump(by_alias=True, exclude_none=True)
+            filter_spec = body.filter.model_dump(by_alias=True)
 
         rows, next_cursor = await tables_svc.query_rows(
             db,
@@ -264,11 +302,7 @@ async def query_rows(
             next_cursor=next_cursor,
         )
     except AuthError as e:
-        if e.code in ("invalid_filter", "invalid_sort", "invalid_cursor"):
-            raise HTTPException(status_code=400, detail=e.message)
-        if e.code == "not_found":
-            raise HTTPException(status_code=404, detail=e.message)
-        raise HTTPException(status_code=400, detail=e.message)
+        raise _http_error(e)
 
 
 @router.get("/tables/{table_id}/rows/{row_id}", response_model=RowResponse)
@@ -285,7 +319,7 @@ async def get_row(
         )
         return row
     except AuthError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise _http_error(e)
 
 
 @router.patch("/tables/{table_id}/rows/{row_id}", response_model=RowResponse)
@@ -311,13 +345,7 @@ async def update_row(
         )
         return row
     except AuthError as e:
-        if e.code == "storage_limit_exceeded":
-            raise HTTPException(status_code=413, detail=e.message)
-        if e.code == "validation_error":
-            raise HTTPException(status_code=422, detail=e.message)
-        if e.code == "not_found":
-            raise HTTPException(status_code=404, detail=e.message)
-        raise HTTPException(status_code=400, detail=e.message)
+        raise _http_error(e)
 
 
 @router.delete("/tables/{table_id}/rows/{row_id}", status_code=204)
@@ -338,4 +366,4 @@ async def delete_row(
             user_id=row_user_id,
         )
     except AuthError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise _http_error(e)

@@ -1,9 +1,34 @@
+"""Google and Apple sign-in, from authorization URL through to a local session.
+
+Starting a flow stores everything security-relevant server-side in Redis under
+a random nonce: the PKCE code verifier, the OIDC nonce, the validated redirect
+target, and a digest of a secret that is also written to the browser as a
+cookie. The `state` parameter carries only the lookup nonce and the publishable
+key, so nothing an attacker can edit in the callback URL influences where the
+browser is sent or which application is used.
+
+That layout is what defeats the three standard attacks on this flow. The state
+cookie binds the callback to the browser that began it, so a captured callback
+URL replayed against a victim cannot silently sign them into the attacker's
+account. PKCE binds the authorization code to this client, so an intercepted
+code is useless. The OIDC nonce is checked against the ID token, so a token
+minted for another flow is rejected, and the authorization code is always
+exchanged with the provider rather than trusting an ID token posted to the
+callback.
+
+Linking an OAuth identity to an existing local account requires the provider to
+assert the address is verified and requires the local account to be verified
+too. Without both checks, registering an unverified password account for
+someone else's address would capture their later OAuth sign-in.
+"""
+
 import base64
 import hashlib
 import json
 import secrets
 import time
 from datetime import datetime, timezone
+from urllib.parse import urlencode
 
 import httpx
 from jose import JWTError
@@ -14,15 +39,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ezauth.config import settings
+from ezauth.crypto import constant_time_compare, hash_token
 from ezauth.models.application import Application
 from ezauth.models.oauth_identity import OAuthIdentity
 from ezauth.models.user import User
+from ezauth.redirects import is_allowed_redirect
 from ezauth.services import audit, sessions
 from ezauth.services.auth import AuthError
 
-# In-memory JWKS cache: provider -> (keys_dict, fetched_timestamp)
+# Provider JWKS documents, cached per process as (keys, fetched_at).
 _jwks_cache: dict[str, tuple[dict, float]] = {}
-_JWKS_CACHE_TTL = 3600  # 1 hour
+_JWKS_CACHE_TTL = 3600
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -31,6 +58,8 @@ GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs"
 APPLE_AUTH_URL = "https://appleid.apple.com/auth/authorize"
 APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token"
 APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
+
+SUPPORTED_PROVIDERS = ("google", "apple")
 
 
 def get_oauth_config(app: Application, provider: str) -> dict | None:
@@ -48,27 +77,54 @@ def decode_state(state: str) -> dict:
     try:
         padded = state + "=" * (-len(state) % 4)
         raw = base64.urlsafe_b64decode(padded)
-        return json.loads(raw)
+        data = json.loads(raw)
     except Exception as e:
         raise AuthError("Invalid OAuth state", code="invalid_state") from e
+    if not isinstance(data, dict):
+        raise AuthError("Invalid OAuth state", code="invalid_state")
+    return data
+
+
+def _encode_state(payload: dict) -> str:
+    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
 
 
 def _build_redirect_uri(app: Application, provider: str) -> str:
-    """Build the OAuth callback redirect URI for a provider."""
+    """Build the OAuth callback redirect URI registered with the provider."""
     if app.primary_domain:
         base = f"https://{app.primary_domain}"
     else:
-        base = "http://localhost:8000"
+        base = settings.public_base_url.rstrip("/")
     return f"{base}/v1/oauth/{provider}/callback"
 
 
+def _pkce_pair() -> tuple[str, str]:
+    verifier = secrets.token_urlsafe(64)
+    digest = hashlib.sha256(verifier.encode()).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+    return verifier, challenge
+
+
+def _state_key(nonce: str) -> str:
+    return f"oauth_state:{hashlib.sha256(nonce.encode()).hexdigest()}"
+
+
 async def get_authorization_url(
+    db: AsyncSession,
     app: Application,
     redis,
     provider: str,
     redirect_url: str,
-) -> str:
-    """Build the OAuth authorization URL for a provider."""
+) -> tuple[str, str]:
+    """Build the provider authorization URL.
+
+    Returns (authorization_url, state_secret). The caller must set state_secret
+    as a cookie on the browser it is redirecting, so the callback can prove it
+    belongs to the same browser that started the flow.
+    """
+    if provider not in SUPPORTED_PROVIDERS:
+        raise AuthError(f"Unsupported OAuth provider: {provider}", code="unsupported_provider")
+
     config = get_oauth_config(app, provider)
     if not config:
         raise AuthError(
@@ -76,48 +132,79 @@ async def get_authorization_url(
             code="provider_not_configured",
         )
 
-    # Generate CSRF nonce and store in Redis
+    if redirect_url and not await is_allowed_redirect(db, app, redirect_url):
+        raise AuthError(
+            "redirect_url is not an allowed domain for this application",
+            code="invalid_redirect_url",
+        )
+
     nonce = secrets.token_urlsafe(32)
-    nonce_hash = hashlib.sha256(nonce.encode()).hexdigest()
-    await redis.set(f"oauth_state:{nonce_hash}", "1", ex=settings.oauth_state_ttl_seconds)
+    state_secret = secrets.token_urlsafe(32)
+    oidc_nonce = secrets.token_urlsafe(32)
+    verifier, challenge = _pkce_pair()
 
-    # Build state payload
-    state_payload = {
-        "nonce": nonce,
-        "redirect_url": redirect_url,
-        "pk": app.publishable_key,
-    }
-    state = base64.urlsafe_b64encode(json.dumps(state_payload).encode()).decode().rstrip("=")
+    await redis.set(
+        _state_key(nonce),
+        json.dumps(
+            {
+                "app_id": str(app.id),
+                "provider": provider,
+                "redirect_url": redirect_url or "",
+                "code_verifier": verifier,
+                "oidc_nonce": oidc_nonce,
+                "state_secret_hash": hash_token(state_secret),
+            }
+        ),
+        ex=settings.oauth_state_ttl_seconds,
+    )
 
+    state = _encode_state({"nonce": nonce, "pk": app.publishable_key})
     redirect_uri = _build_redirect_uri(app, provider)
 
+    common = {
+        "response_type": "code",
+        "client_id": config["client_id"],
+        "redirect_uri": redirect_uri,
+        "state": state,
+        "nonce": oidc_nonce,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+    }
+
     if provider == "google":
-        from urllib.parse import urlencode
         params = {
-            "response_type": "code",
-            "client_id": config["client_id"],
-            "redirect_uri": redirect_uri,
+            **common,
             "scope": "openid email profile",
-            "state": state,
             "access_type": "offline",
             "prompt": "select_account",
         }
-        return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
+        return f"{GOOGLE_AUTH_URL}?{urlencode(params)}", state_secret
 
-    elif provider == "apple":
-        from urllib.parse import urlencode
-        params = {
-            "response_type": "code",
-            "client_id": config["client_id"],
-            "redirect_uri": redirect_uri,
-            "scope": "name email",
-            "state": state,
-            "response_mode": "form_post",
-        }
-        return f"{APPLE_AUTH_URL}?{urlencode(params)}"
+    params = {**common, "scope": "name email", "response_mode": "form_post"}
+    return f"{APPLE_AUTH_URL}?{urlencode(params)}", state_secret
 
-    else:
-        raise AuthError(f"Unsupported OAuth provider: {provider}", code="unsupported_provider")
+
+async def consume_state(redis, state: str) -> dict:
+    """Atomically read and delete the server-side record for a state nonce."""
+    state_data = decode_state(state)
+    nonce = state_data.get("nonce")
+    if not nonce or not isinstance(nonce, str):
+        raise AuthError("Missing nonce in OAuth state", code="invalid_state")
+
+    key = _state_key(nonce)
+    pipe = redis.pipeline()
+    pipe.get(key)
+    pipe.delete(key)
+    results = await pipe.execute()
+
+    stored = results[0]
+    if not stored:
+        raise AuthError("Invalid or expired OAuth state", code="invalid_state")
+
+    try:
+        return json.loads(stored)
+    except json.JSONDecodeError as e:
+        raise AuthError("Invalid or expired OAuth state", code="invalid_state") from e
 
 
 def _generate_apple_client_secret(config: dict) -> str:
@@ -129,16 +216,16 @@ def _generate_apple_client_secret(config: dict) -> str:
         "sub": config["client_id"],
         "aud": "https://appleid.apple.com",
         "iat": now,
-        "exp": now + 300,  # 5 min
+        "exp": now + 300,
     }
     return jose_jwt.encode(claims, config["private_key"], algorithm="ES256", headers=headers)
 
 
-async def _fetch_jwks(provider: str) -> dict:
-    """Fetch and cache JWKS keys for a provider."""
+async def _fetch_jwks(provider: str, force: bool = False) -> dict:
+    """Fetch provider JWKS, refreshing when a key id is not in the cache."""
     now = time.time()
     cached = _jwks_cache.get(provider)
-    if cached and (now - cached[1]) < _JWKS_CACHE_TTL:
+    if cached and not force and (now - cached[1]) < _JWKS_CACHE_TTL:
         return cached[0]
 
     url = GOOGLE_JWKS_URL if provider == "google" else APPLE_JWKS_URL
@@ -151,9 +238,24 @@ async def _fetch_jwks(provider: str) -> dict:
     return jwks
 
 
-async def _verify_id_token(provider: str, id_token: str, client_id: str) -> dict:
-    """Decode and verify an ID token JWT against the provider's JWKS."""
+def _kid_present(jwks: dict, id_token: str) -> bool:
+    try:
+        header = jose_jwt.get_unverified_header(id_token)
+    except JWTError:
+        return True
+    kid = header.get("kid")
+    if not kid:
+        return True
+    return any(key.get("kid") == kid for key in jwks.get("keys", []))
+
+
+async def _verify_id_token(
+    provider: str, id_token: str, client_id: str, expected_nonce: str
+) -> dict:
+    """Verify an ID token against the provider's JWKS and the flow's nonce."""
     jwks = await _fetch_jwks(provider)
+    if not _kid_present(jwks, id_token):
+        jwks = await _fetch_jwks(provider, force=True)
 
     if provider == "google":
         issuer = ["https://accounts.google.com", "accounts.google.com"]
@@ -169,9 +271,23 @@ async def _verify_id_token(provider: str, id_token: str, client_id: str) -> dict
             issuer=issuer,
         )
     except JWTError as e:
-        raise AuthError(f"Invalid ID token: {e}", code="invalid_id_token") from e
+        raise AuthError("Invalid ID token", code="invalid_id_token") from e
+
+    token_nonce = claims.get("nonce")
+    if not token_nonce or not constant_time_compare(str(token_nonce), expected_nonce):
+        raise AuthError("ID token nonce mismatch", code="invalid_id_token")
 
     return claims
+
+
+async def _request_tokens(provider: str, config: dict, data: dict) -> dict:
+    url = GOOGLE_TOKEN_URL if provider == "google" else APPLE_TOKEN_URL
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(url, data=data, timeout=10)
+    if resp.status_code != 200:
+        logger.error("{} token exchange failed with status {}", provider, resp.status_code)
+        raise AuthError("Failed to exchange authorization code", code="token_exchange_failed")
+    return resp.json()
 
 
 async def exchange_code(
@@ -180,27 +296,28 @@ async def exchange_code(
     app: Application,
     provider: str,
     code: str,
-    state: str,
-    id_token_hint: str | None = None,
+    state_record: dict,
+    state_secret: str | None,
     ip_address: str | None = None,
     user_agent: str | None = None,
 ):
-    """Exchange an OAuth authorization code for a session.
+    """Exchange an authorization code for a local session.
+
+    `state_record` is the server-side record returned by `consume_state` and
+    `state_secret` is the value from the browser's state cookie.
 
     Returns (user, session, access_jwt, raw_refresh, redirect_url).
     """
-    # 1. Decode and validate state
-    state_data = decode_state(state)
-    nonce = state_data.get("nonce")
-    redirect_url = state_data.get("redirect_url", "")
+    expected_hash = state_record.get("state_secret_hash")
+    if not expected_hash or not state_secret:
+        raise AuthError("OAuth state is not bound to this browser", code="invalid_state")
+    if not constant_time_compare(expected_hash, hash_token(state_secret)):
+        raise AuthError("OAuth state is not bound to this browser", code="invalid_state")
 
-    if not nonce:
-        raise AuthError("Missing nonce in OAuth state", code="invalid_state")
-
-    nonce_hash = hashlib.sha256(nonce.encode()).hexdigest()
-    deleted = await redis.delete(f"oauth_state:{nonce_hash}")
-    if not deleted:
-        raise AuthError("Invalid or expired OAuth state", code="invalid_state")
+    if state_record.get("app_id") != str(app.id):
+        raise AuthError("OAuth state belongs to another application", code="invalid_state")
+    if state_record.get("provider") != provider:
+        raise AuthError("OAuth state belongs to another provider", code="invalid_state")
 
     config = get_oauth_config(app, provider)
     if not config:
@@ -210,81 +327,44 @@ async def exchange_code(
         )
 
     redirect_uri = _build_redirect_uri(app, provider)
-
-    # 2. Exchange code for tokens
-    id_token = None
+    token_request = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": redirect_uri,
+        "client_id": config["client_id"],
+        "code_verifier": state_record.get("code_verifier", ""),
+    }
 
     if provider == "google":
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                GOOGLE_TOKEN_URL,
-                data={
-                    "grant_type": "authorization_code",
-                    "code": code,
-                    "redirect_uri": redirect_uri,
-                    "client_id": config["client_id"],
-                    "client_secret": config["client_secret"],
-                },
-                timeout=10,
-            )
-        if resp.status_code != 200:
-            logger.error(f"Google token exchange failed: {resp.status_code} {resp.text}")
-            raise AuthError("Failed to exchange authorization code", code="token_exchange_failed")
-        token_data = resp.json()
-        id_token = token_data.get("id_token")
+        token_request["client_secret"] = config["client_secret"]
+    else:
+        token_request["client_secret"] = _generate_apple_client_secret(config)
 
-    elif provider == "apple":
-        # Apple may send id_token directly via form_post
-        if id_token_hint:
-            id_token = id_token_hint
-        else:
-            client_secret = _generate_apple_client_secret(config)
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(
-                    APPLE_TOKEN_URL,
-                    data={
-                        "grant_type": "authorization_code",
-                        "code": code,
-                        "redirect_uri": redirect_uri,
-                        "client_id": config["client_id"],
-                        "client_secret": client_secret,
-                    },
-                    timeout=10,
-                )
-            if resp.status_code != 200:
-                logger.error(f"Apple token exchange failed: {resp.status_code} {resp.text}")
-                raise AuthError(
-                    "Failed to exchange authorization code",
-                    code="token_exchange_failed",
-                )
-            token_data = resp.json()
-            id_token = token_data.get("id_token")
-
+    token_data = await _request_tokens(provider, config, token_request)
+    id_token = token_data.get("id_token")
     if not id_token:
         raise AuthError("No ID token received from provider", code="no_id_token")
 
-    # 3. Verify ID token
-    claims = await _verify_id_token(provider, id_token, config["client_id"])
+    claims = await _verify_id_token(
+        provider, id_token, config["client_id"], state_record.get("oidc_nonce", "")
+    )
 
     sub = claims.get("sub")
-    email = claims.get("email")
-    email_verified = claims.get("email_verified", False)
-
     if not sub:
         raise AuthError("No subject in ID token", code="invalid_id_token")
 
-    # 4. Find or create user
     user = await _find_or_create_user(
-        db, app=app, provider=provider, sub=sub,
-        email=email, email_verified=email_verified, claims=claims,
+        db,
+        app=app,
+        provider=provider,
+        sub=sub,
+        email=claims.get("email"),
+        email_verified=bool(claims.get("email_verified", False)),
+        claims=claims,
     )
 
-    # 5. Create session
-    session, access_jwt, raw_refresh = await sessions.create_session(
-        db, app=app, user=user
-    )
+    session, access_jwt, raw_refresh = await sessions.create_session(db, app=app, user=user)
 
-    # 6. Audit log
     await audit.log_event(
         db,
         app_id=app.id,
@@ -296,7 +376,22 @@ async def exchange_code(
         metadata={"provider": provider},
     )
 
-    return user, session, access_jwt, raw_refresh, redirect_url
+    return user, session, access_jwt, raw_refresh, state_record.get("redirect_url") or ""
+
+
+async def _identity_user(db: AsyncSession, app: Application, provider: str, sub: str):
+    result = await db.execute(
+        select(OAuthIdentity).where(
+            OAuthIdentity.app_id == app.id,
+            OAuthIdentity.provider == provider,
+            OAuthIdentity.provider_user_id == sub,
+        )
+    )
+    identity = result.scalars().first()
+    if identity is None:
+        return None, None
+    user_result = await db.execute(select(User).where(User.id == identity.user_id))
+    return identity, user_result.scalars().first()
 
 
 async def _find_or_create_user(
@@ -309,37 +404,23 @@ async def _find_or_create_user(
     email_verified: bool,
     claims: dict,
 ) -> User:
-    """Find existing user by OAuth identity or email, or create a new one."""
+    """Find the user for an OAuth identity, linking or creating as appropriate."""
     metadata = {}
     if claims.get("name"):
         metadata["name"] = claims["name"]
     if claims.get("picture"):
         metadata["picture"] = claims["picture"]
 
-    # 1. Look up by OAuth identity
-    result = await db.execute(
-        select(OAuthIdentity).where(
-            OAuthIdentity.app_id == app.id,
-            OAuthIdentity.provider == provider,
-            OAuthIdentity.provider_user_id == sub,
-        )
-    )
-    identity = result.scalars().first()
-
-    if identity:
-        # Update metadata if changed
+    identity, user = await _identity_user(db, app, provider, sub)
+    if identity is not None:
         if metadata and identity.metadata_json != metadata:
             identity.metadata_json = metadata
         if email and identity.email != email:
             identity.email = email
         await db.flush()
-
-        user_result = await db.execute(select(User).where(User.id == identity.user_id))
-        user = user_result.scalars().first()
-        if user:
+        if user is not None:
             return user
 
-    # 2. Look up by email (link accounts)
     if email:
         result = await db.execute(
             select(User).where(
@@ -347,41 +428,45 @@ async def _find_or_create_user(
                 User.email_lower == email.lower(),
             )
         )
-        user = result.scalars().first()
+        existing = result.scalars().first()
 
-        if user:
-            # Link OAuth identity to existing user
-            try:
-                oauth_identity = OAuthIdentity(
-                    app_id=app.id,
-                    user_id=user.id,
-                    provider=provider,
-                    provider_user_id=sub,
-                    email=email,
-                    metadata_json=metadata or None,
+        if existing is not None:
+            if not email_verified:
+                raise AuthError(
+                    "The provider has not verified this email address",
+                    code="provider_email_unverified",
                 )
-                db.add(oauth_identity)
+            if existing.email_verified_at is None and existing.password_hash is not None:
+                raise AuthError(
+                    "An unverified account already uses this email address. "
+                    "Sign in with your password and verify it first.",
+                    code="link_requires_verification",
+                )
+
+            try:
+                db.add(
+                    OAuthIdentity(
+                        app_id=app.id,
+                        user_id=existing.id,
+                        provider=provider,
+                        provider_user_id=sub,
+                        email=email,
+                        metadata_json=metadata or None,
+                    )
+                )
                 await db.flush()
             except IntegrityError:
                 await db.rollback()
-                # Race condition: identity was created concurrently, fetch it
-                result = await db.execute(
-                    select(OAuthIdentity).where(
-                        OAuthIdentity.app_id == app.id,
-                        OAuthIdentity.provider == provider,
-                        OAuthIdentity.provider_user_id == sub,
-                    )
-                )
-                identity = result.scalars().first()
-                if identity:
-                    user_result = await db.execute(select(User).where(User.id == identity.user_id))
-                    user = user_result.scalars().first()
-                    if user:
-                        return user
+                _identity, raced = await _identity_user(db, app, provider, sub)
+                if raced is not None:
+                    return raced
                 raise AuthError("Failed to link OAuth account", code="link_failed")
-            return user
 
-    # 3. Create new user
+            if existing.email_verified_at is None:
+                existing.email_verified_at = datetime.now(timezone.utc)
+                await db.flush()
+            return existing
+
     user = User(
         app_id=app.id,
         email=email,
@@ -391,32 +476,22 @@ async def _find_or_create_user(
     await db.flush()
 
     try:
-        oauth_identity = OAuthIdentity(
-            app_id=app.id,
-            user_id=user.id,
-            provider=provider,
-            provider_user_id=sub,
-            email=email,
-            metadata_json=metadata or None,
+        db.add(
+            OAuthIdentity(
+                app_id=app.id,
+                user_id=user.id,
+                provider=provider,
+                provider_user_id=sub,
+                email=email,
+                metadata_json=metadata or None,
+            )
         )
-        db.add(oauth_identity)
         await db.flush()
     except IntegrityError:
         await db.rollback()
-        # Race condition: retry lookup
-        result = await db.execute(
-            select(OAuthIdentity).where(
-                OAuthIdentity.app_id == app.id,
-                OAuthIdentity.provider == provider,
-                OAuthIdentity.provider_user_id == sub,
-            )
-        )
-        identity = result.scalars().first()
-        if identity:
-            user_result = await db.execute(select(User).where(User.id == identity.user_id))
-            user = user_result.scalars().first()
-            if user:
-                return user
+        _identity, raced = await _identity_user(db, app, provider, sub)
+        if raced is not None:
+            return raced
         raise AuthError("Failed to create OAuth account", code="create_failed")
 
     return user

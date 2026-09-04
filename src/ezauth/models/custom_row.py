@@ -25,7 +25,7 @@ class CustomRow(Base, UUIDPrimaryKey, TimestampMixin):
     )
     data: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
 
-    table: Mapped["CustomTable"] = relationship(back_populates="rows")
+    table: Mapped["CustomTable"] = relationship(back_populates="rows")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<CustomRow {self.id} table_id={self.table_id}>"

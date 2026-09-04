@@ -136,9 +136,44 @@
   </table>
 
   <h2>Dashboard</h2>
+  <p>The dashboard has no shared password. Sign-in emails a single-use code to an
+  address listed below, or to an application&rsquo;s <code>owner_email</code>.</p>
   <table>
     <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
-    <tr><td><code>DASHBOARD_SECRET_KEY</code></td><td>&mdash;</td><td>Password for the admin dashboard</td></tr>
+    <tr><td><code>DASHBOARD_ADMIN_EMAILS</code></td><td><code>""</code></td><td>Comma-separated addresses granted superadmin access</td></tr>
+    <tr><td><code>DASHBOARD_SESSION_TTL_SECONDS</code></td><td><code>43200</code></td><td>Dashboard session lifetime (12 hours)</td></tr>
+    <tr><td><code>DASHBOARD_ALLOWED_ORIGINS</code></td><td><code>""</code></td><td>Comma-separated origins allowed to call the dashboard cross-origin</td></tr>
+    <tr><td><code>INTERNAL_API_SECRET</code></td><td><code>""</code></td><td>Shared secret for internal endpoints reached through the proxy</td></tr>
+  </table>
+
+  <h2>Deployment</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>ENVIRONMENT</code></td><td><code>development</code></td><td>Set to <code>production</code> to reject development defaults at startup</td></tr>
+    <tr><td><code>PUBLIC_BASE_URL</code></td><td><code>http://localhost:8000</code></td><td>Public origin, used for email links and OAuth redirect URIs</td></tr>
+    <tr><td><code>DB_POOL_SIZE</code></td><td><code>10</code></td><td>Connection pool size</td></tr>
+    <tr><td><code>DB_MAX_OVERFLOW</code></td><td><code>20</code></td><td>Connections allowed beyond the pool size</td></tr>
+    <tr><td><code>DB_POOL_RECYCLE_SECONDS</code></td><td><code>1800</code></td><td>Recycle connections older than this</td></tr>
+  </table>
+
+  <h2>Sessions and tokens</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>SESSION_REVOCATION_CHECK</code></td><td><code>true</code></td><td>Confirm the session row on each request so logout takes effect immediately</td></tr>
+    <tr><td><code>SESSION_COOKIE_PER_APP</code></td><td><code>true</code></td><td>Suffix cookie names per application so apps sharing a domain do not collide</td></tr>
+    <tr><td><code>REFRESH_COOKIE_NAME</code></td><td><code>__refresh</code></td><td>Refresh cookie name</td></tr>
+    <tr><td><code>REFRESH_COOKIE_PATH</code></td><td><code>/v1/tokens</code></td><td>Path the refresh cookie is scoped to</td></tr>
+    <tr><td><code>MAX_SIGNIN_TOKEN_LIFETIME_SECONDS</code></td><td><code>86400</code></td><td>Upper bound on backend-minted sign-in tokens</td></tr>
+    <tr><td><code>MAX_CODE_ATTEMPTS</code></td><td><code>5</code></td><td>Wrong guesses before a code is burned</td></tr>
+  </table>
+
+  <h2>Retention</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>CLEANUP_INTERVAL_SECONDS</code></td><td><code>3600</code></td><td>How often the cleanup task runs</td></tr>
+    <tr><td><code>AUTH_ATTEMPT_RETENTION_DAYS</code></td><td><code>7</code></td><td>Retention for spent auth attempts</td></tr>
+    <tr><td><code>EXPIRED_SESSION_RETENTION_DAYS</code></td><td><code>30</code></td><td>Retention for expired and revoked sessions</td></tr>
+    <tr><td><code>AUDIT_LOG_RETENTION_DAYS</code></td><td><code>365</code></td><td>Retention for audit log rows</td></tr>
   </table>
 </main>
 </body>

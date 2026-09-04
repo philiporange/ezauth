@@ -13,6 +13,9 @@ export class BaseClient {
     this.secretKey = config.secretKey || null;
     this.publishableKey = config.publishableKey || null;
     this.accessToken = config.accessToken || null;
+    // Optional replacement for the built-in Argon2id proof-of-work solver,
+    // e.g. a WASM implementation or a worker-backed one.
+    this.hashcashSolver = config.hashcashSolver || null;
   }
 
   _buildHeaders(auth, contentType = 'application/json') {
@@ -56,11 +59,16 @@ export class BaseClient {
     return url;
   }
 
-  async _fetch(path, { method = 'GET', body, auth = 'secret', query } = {}) {
+  async _fetch(path, { method = 'GET', body, auth = 'secret', query, bearer = false } = {}) {
     const url = this._buildUrl(path, query);
     const headers = this._buildHeaders(auth);
+    if (bearer && this.accessToken && !headers['Authorization']) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
 
-    const opts = { method, headers };
+    // Credentials are included so the session cookie reaches the API from a
+    // page served on another origin.
+    const opts = { method, headers, credentials: 'include' };
     if (body !== undefined) opts.body = JSON.stringify(body);
 
     const resp = await fetch(url, opts);
@@ -83,7 +91,7 @@ export class BaseClient {
     const url = this._buildUrl(path, query);
     const headers = this._buildHeaders(auth, contentType || '');
 
-    const opts = { method, headers };
+    const opts = { method, headers, credentials: 'include' };
     if (body !== undefined) opts.body = body;
 
     const resp = await fetch(url, opts);

@@ -57,9 +57,12 @@ class BaseClient: @unchecked Sendable {
         method: String = "GET",
         body: (any Encodable)? = nil,
         auth: AuthMode = .secret,
-        query: [String: String?]? = nil
+        query: [String: String?]? = nil,
+        bearer: Bool = false
     ) async throws -> T {
-        let request = try buildRequest(path: path, method: method, body: body, auth: auth, query: query)
+        let request = try buildRequest(
+            path: path, method: method, body: body, auth: auth, query: query, bearer: bearer
+        )
         let (data, response) = try await session.data(for: request)
 
         guard let http = response as? HTTPURLResponse else {
@@ -178,15 +181,24 @@ class BaseClient: @unchecked Sendable {
         method: String,
         body: (any Encodable)?,
         auth: AuthMode,
-        query: [String: String?]?
+        query: [String: String?]?,
+        bearer: Bool = false
     ) throws -> URLRequest {
         let url = try buildURL(path: path, query: query)
 
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Endpoints that resolve the caller's session accept either the
+        // session cookie, which URLSession stores and replays, or the access
+        // token as a bearer credential.
+        request.httpShouldHandleCookies = true
 
         try applyAuth(to: &request, mode: auth)
+
+        if bearer, auth == .publishable, let token = accessToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         if let body {
             request.httpBody = try encoder.encode(body)

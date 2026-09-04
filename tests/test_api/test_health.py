@@ -1,19 +1,20 @@
-import pytest
-from httpx import ASGITransport, AsyncClient
+"""Tests for the liveness and readiness endpoints."""
 
 
-@pytest.fixture
-async def client():
-    from ezauth.main import create_app
-
-    app = create_app()
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
-        yield c
-
-
-@pytest.mark.skipif(True, reason="Requires Redis connection")
-async def test_health(client):
-    resp = await client.get("/health")
+async def test_live_is_a_cheap_liveness_probe(client):
+    resp = await client.get("/live")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    assert resp.json()["status"] == "ok"
+
+
+async def test_health_reports_each_dependency(client):
+    """Readiness must name each dependency so a probe failure is diagnosable."""
+    resp = await client.get("/health")
+    assert resp.status_code in (200, 503)
+
+    body = resp.json()
+    assert set(body["checks"]) == {"database", "redis"}
+    assert body["checks"]["database"] is True
+
+    healthy = all(body["checks"].values())
+    assert (resp.status_code == 200) is healthy

@@ -1,3 +1,10 @@
+"""Request and response models for the object storage API.
+
+Bucket size limits are optional but, when present, must be strictly positive:
+a zero or negative cap would make every usage comparison fail and lock the
+bucket against all writes.
+"""
+
 from __future__ import annotations
 
 import uuid
@@ -13,8 +20,8 @@ class CreateBucketRequest(BaseModel):
 
 
 class UpdateBucketRequest(BaseModel):
-    max_size_bytes: int | None = None
-    max_size_bytes_per_user: int | None = None
+    max_size_bytes: int | None = Field(None, gt=0)
+    max_size_bytes_per_user: int | None = Field(None, gt=0)
 
 
 class BucketResponse(BaseModel):
