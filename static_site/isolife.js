@@ -253,9 +253,10 @@
     ctx.globalAlpha = 1;
   }
 
-  /* --- loop: step on tick, draw every frame --- */
+  /* --- loop: step on tick, draw every frame; stop if canvas leaves the DOM --- */
   let raf = 0, last = 0;
   function loop(now) {
+    if (!canvas.isConnected) { raf = 0; return; }
     if (now - last >= TICK) { step(); last = now; }
     const t = Math.min((now - last) / TICK, 1);
     draw(t);

@@ -3,97 +3,147 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ezAuth Dashboard</title>
+<title>ezAuth Console</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 4 28 26H4z' fill='%23111'/%3E%3C/svg%3E">
 <style>
 :root {
-  --bg: #ffffff;
-  --text: #111111;
-  --muted: #666666;
-  --border: #eeeeee;
-  --accent: #000000;
-  --sidebar-bg: #ffffff;
-  --hover: #f9f9f9;
+  --bg: #f7f7f6;
+  --panel: #ffffff;
+  --text: #161616;
+  --muted: #5f5f5f;
+  --faint: #9a9a9a;
+  --border: #e7e7e4;
+  --accent: #111111;
+  --hover: #f1f1ef;
+  --danger: #b3261e;
+  --danger-bg: #fdf0ef;
+  --ok: #1a7f37;
+  --ok-bg: #edf7ef;
+  --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -16px rgba(0,0,0,0.12);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; -webkit-font-smoothing: antialiased; }
-#app { width: 100%; display: flex; min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+#app { display: flex; min-height: 100vh; }
 
 /* Sidebar */
-.sidebar { width: 240px; background: var(--sidebar-bg); color: var(--text); padding: 40px 0; display: flex; flex-direction: column; position: fixed; height: 100vh; border-right: 1px solid var(--border); }
-.sidebar-brand { font-size: 20px; font-weight: 300; padding: 0 30px 40px; letter-spacing: -0.02em; }
-.sidebar a { color: var(--muted); text-decoration: none; padding: 12px 30px; display: block; transition: all 0.2s; cursor: pointer; font-size: 14px; font-weight: 500; }
-.sidebar a:hover { color: var(--accent); background: var(--hover); padding-left: 35px; }
-.sidebar a.active { color: var(--accent); background: var(--hover); font-weight: 600; border-right: 2px solid var(--accent); }
-.sidebar .logout { margin-top: auto; border-top: 1px solid var(--border); padding-top: 20px; color: var(--muted); }
+.sidebar { width: 250px; background: var(--panel); padding: 24px 16px; display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; border-right: 1px solid var(--border); }
+.sidebar-brand { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 600; letter-spacing: -0.02em; padding: 6px 10px 22px; cursor: pointer; color: var(--text); text-decoration: none; }
+.brand-tag { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 3px 8px; }
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.sidebar a { display: flex; align-items: center; gap: 11px; color: var(--muted); text-decoration: none; padding: 9px 10px; border-radius: 9px; transition: background 0.15s, color 0.15s; cursor: pointer; font-size: 14px; font-weight: 500; }
+.sidebar a svg { width: 16px; height: 16px; stroke: currentColor; flex: none; }
+.sidebar a:hover { color: var(--text); background: var(--hover); }
+.sidebar a.active { color: var(--text); background: var(--hover); font-weight: 600; }
+.sidebar .logout { margin-top: auto; border-top: 1px solid var(--border); border-radius: 0; padding-top: 18px; }
 
 /* Content */
-.content { margin-left: 240px; padding: 60px 80px; flex: 1; min-width: 0; }
-.page-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 40px; }
-h2 { font-size: 28px; font-weight: 300; margin-bottom: 24px; letter-spacing: -0.02em; }
-h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; }
+.content { margin-left: 250px; padding: 48px 56px; flex: 1; min-width: 0; }
+.page-wrap { max-width: 1040px; margin: 0 auto; }
+.page-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 32px; }
+.page-header h2 { margin-bottom: 0; }
+.page-sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+h2 { font-size: 26px; font-weight: 600; margin-bottom: 24px; letter-spacing: -0.02em; }
+h3 { font-size: 12px; font-weight: 600; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
 
-/* Tables */
+/* Tables — top-level tables render as cards */
+#main > table { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; border-collapse: separate; border-spacing: 0; box-shadow: var(--shadow); overflow: hidden; }
 table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
-th { text-align: left; padding: 12px 0; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); border-bottom: 2px solid var(--accent); }
-td { padding: 20px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: #333; }
-tr:hover td { background: transparent; color: #000; }
+th { text-align: left; padding: 13px 18px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border-bottom: 1px solid var(--border); background: #fbfbfa; }
+td { padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 14px; color: #2b2b2b; }
+tr:last-child td { border-bottom: none; }
+#main > table tbody tr:hover td { background: #fbfbfa; }
 
 /* Forms */
-label { display: block; font-weight: 600; font-size: 11px; margin-bottom: 8px; margin-top: 24px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+label { display: block; font-weight: 600; font-size: 11px; margin-bottom: 8px; margin-top: 20px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 label:first-child { margin-top: 0; }
 input[type="text"], input[type="email"], input[type="password"], input[type="url"], select, textarea {
-  width: 100%; padding: 12px 0; border: none; border-bottom: 1px solid var(--border); font-size: 14px; background: transparent; transition: border-color 0.2s; border-radius: 0;
+  width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 9px; font-size: 14px; background: var(--panel); color: var(--text); transition: border-color 0.15s, box-shadow 0.15s; font-family: inherit;
 }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
-button, .btn { display: inline-block; padding: 12px 24px; background: var(--accent); color: #fff; border: none; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity 0.2s; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 0; }
-button:hover, .btn:hover { opacity: 0.8; }
-.btn-danger { background: #000; text-decoration: underline; background: transparent; color: #000; padding: 0; }
-.btn-danger:hover { opacity: 0.6; background: transparent; }
-.btn-sm { padding: 8px 16px; font-size: 11px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,0,0,0.07); }
+button, .btn { display: inline-block; padding: 11px 20px; background: var(--accent); color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity 0.15s; letter-spacing: 0.02em; }
+button:hover, .btn:hover { opacity: 0.82; }
+button:disabled { opacity: 0.45; cursor: default; }
+.btn-danger { background: transparent; color: var(--danger); padding: 6px 0; font-weight: 500; }
+.btn-danger:hover { opacity: 0.65; background: transparent; }
+.btn-sm { padding: 8px 15px; font-size: 12px; }
+.pagination .btn { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
+.pagination .btn:hover { background: var(--hover); opacity: 1; }
+.pagination .btn:disabled { background: var(--panel); opacity: 0.4; }
 
 /* Cards */
-.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; margin-bottom: 60px; }
-.stat-card { border-top: 1px solid var(--border); padding-top: 20px; }
-.stat-card .label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
-.stat-card .value { font-size: 32px; font-weight: 300; color: var(--accent); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 32px; }
+.stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; box-shadow: var(--shadow); }
+.stat-card .label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+.stat-card .value { font-size: 30px; font-weight: 300; color: var(--text); letter-spacing: -0.02em; }
 
 /* Badges */
-.badge { display: inline-block; padding: 2px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid var(--border); }
-.badge-success { color: #000; }
-.badge-warning { color: #000; }
-.badge-muted { color: var(--muted); }
+.badge { display: inline-block; padding: 3px 10px; font-size: 11px; font-weight: 600; border-radius: 999px; }
+.badge-success { color: var(--ok); background: var(--ok-bg); }
+.badge-warning { color: #8a6d00; background: #fdf6e0; }
+.badge-muted { color: var(--muted); background: var(--hover); }
 
 /* Utility */
-.mono { font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
-.error { color: #000; border-left: 4px solid #000; padding: 12px 20px; background: #f9f9f9; margin-bottom: 20px; font-size: 14px; }
-.success { color: #000; font-weight: 600; margin-bottom: 10px; }
-.inline-form { display: flex; gap: 40px; align-items: end; margin-bottom: 40px; }
+.mono { font-family: "SF Mono", Menlo, monospace; font-size: 12.5px; }
+.error { color: var(--danger); background: var(--danger-bg); border: 1px solid #f3d4d1; border-radius: 9px; padding: 12px 16px; margin-bottom: 20px; font-size: 14px; }
+.success { color: var(--ok); font-weight: 600; margin-bottom: 10px; font-size: 14px; }
+.inline-form { display: flex; gap: 24px; align-items: flex-end; }
 .inline-form input, .inline-form select { margin-bottom: 0; }
-.search-form { display: flex; gap: 20px; margin-bottom: 40px; border-bottom: 1px solid var(--border); }
-.search-form input { border-bottom: none; }
-.search-form button { background: transparent; color: var(--accent); padding: 0; }
-.pagination { display: flex; gap: 20px; align-items: center; margin-top: 40px; justify-content: center; font-size: 13px; }
+.search-form { display: flex; gap: 10px; margin-bottom: 24px; }
+.search-form input { max-width: 340px; }
+.pagination { display: flex; gap: 16px; align-items: center; margin-top: 24px; justify-content: center; font-size: 13px; color: var(--muted); }
 .clickable { cursor: pointer; }
-.clickable:hover td { color: var(--accent); }
-.actions { display: flex; gap: 20px; margin-top: 32px; }
-.form-card { border: 1px solid var(--border); padding: 40px; margin-bottom: 40px; }
-.back-link { color: var(--muted); cursor: pointer; text-decoration: none; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 24px; display: inline-block; font-weight: 600; }
-.back-link:hover { color: var(--accent); }
-.empty { color: var(--muted); padding: 40px 0; font-size: 14px; }
-.provider-card { border-top: 1px solid var(--border); padding: 40px 0; margin-bottom: 0; }
-.provider-card h3 { margin-bottom: 16px; }
-.tag { display: inline-block; background: var(--hover); color: var(--text); padding: 2px 8px; font-size: 11px; margin-right: 8px; border: 1px solid var(--border); }
+.actions { display: flex; gap: 20px; margin-top: 24px; align-items: center; }
+.form-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 28px; margin-bottom: 24px; box-shadow: var(--shadow); }
+.form-card table { margin-bottom: 0; }
+.form-card th { background: transparent; padding-top: 8px; }
+.back-link { color: var(--muted); cursor: pointer; text-decoration: none; font-size: 13px; font-weight: 500; margin-bottom: 20px; display: inline-block; }
+.back-link:hover { color: var(--text); }
+.empty { color: var(--faint); padding: 32px 0; font-size: 14px; text-align: center; }
+.form-card .empty { text-align: left; padding: 8px 0 16px; }
+.provider-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 28px; margin-bottom: 24px; box-shadow: var(--shadow); }
+.provider-card h3 { margin-bottom: 10px; }
+.provider-card .badge { margin-bottom: 14px; }
+.tag { display: inline-block; background: var(--hover); color: var(--text); padding: 3px 9px; font-size: 11px; font-weight: 500; margin-right: 6px; border-radius: 6px; }
 .hidden { display: none; }
 
+/* Resources (overview) */
+.res-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.res-link { display: block; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; text-decoration: none; transition: background 0.15s, border-color 0.15s; }
+.res-link:hover { background: var(--hover); border-color: #d8d8d4; }
+.res-link .res-title { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; color: var(--text); }
+.res-link .res-title span:last-child { color: var(--faint); font-weight: 400; }
+.res-link .res-desc { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
 /* Login */
-.login-page { display: flex; align-items: center; justify-content: center; background: #ffffff; min-height: 100vh; width: 100%; }
-.login-card { background: #fff; padding: 60px; width: 440px; border: 1px solid var(--border); }
-.login-card h1 { font-size: 32px; font-weight: 300; margin-bottom: 40px; text-align: center; letter-spacing: -0.02em; }
+.login-page { position: relative; display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; padding: 24px; }
+.login-page canvas#bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.login-card { position: relative; z-index: 1; background: rgba(255,255,255,0.72); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 44px 40px; width: 420px; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 24px 60px -24px rgba(0,0,0,0.25); }
+.login-card h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; text-align: center; }
+.login-card h1 span { color: var(--faint); font-weight: 300; }
+.login-card .login-sub { text-align: center; color: var(--muted); font-size: 14px; margin: 8px 0 28px; }
+.login-card .login-hint { text-align: center; color: var(--faint); font-size: 12.5px; margin-top: 16px; }
+.login-card button { width: 100%; margin-top: 20px; }
+.login-card .back-btn { display: block; margin: 14px auto 0; background: transparent; color: var(--muted); padding: 4px 8px; font-weight: 500; }
+.login-card .back-btn:hover { color: var(--text); opacity: 1; }
 
 /* Loading */
-.spinner { display: inline-block; width: 16px; height: 16px; border: 1px solid #eee; border-top-color: #000; border-radius: 50%; animation: spin 0.8s linear infinite; }
+.spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid #e2e2de; border-top-color: var(--text); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; margin-right: 8px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading { text-align: center; padding: 80px; color: var(--muted); font-size: 14px; }
+
+@media (max-width: 900px) {
+  #app { flex-direction: column; }
+  .sidebar { position: sticky; top: 0; width: 100%; height: auto; flex-direction: row; align-items: center; padding: 10px 14px; border-right: none; border-bottom: 1px solid var(--border); overflow-x: auto; z-index: 10; gap: 4px; }
+  .sidebar-brand { padding: 6px 10px; flex: none; }
+  .brand-tag { display: none; }
+  .nav-group { flex-direction: row; flex: none; }
+  .sidebar a { white-space: nowrap; }
+  .sidebar .logout { margin-top: 0; margin-left: auto; border-top: none; padding-top: 9px; }
+  .content { margin-left: 0; padding: 28px 20px 48px; }
+  .inline-form { flex-direction: column; align-items: stretch; gap: 4px; }
+  .inline-form button { margin-top: 12px !important; }
+  .search-form input { max-width: none; }
+}
 </style>
 </head>
 <body>
@@ -110,6 +160,15 @@ button:hover, .btn:hover { opacity: 0.8; }
 
   let ez = null;
   const apiUrl = 'https://api.ezauth.org';
+
+  const ICONS = {
+    overview: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+    users: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>',
+    tables: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 12c0 1.66 3.13 3 7 3s7-1.34 7-3"/></svg>',
+    buckets: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
+    oauth: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8L20 3M15 4.5l3 3M18 2l2.5 2.5"/></svg>',
+    logout: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>',
+  };
 
   // ── Session ──
 
@@ -193,15 +252,17 @@ button:hover, .btn:hover { opacity: 0.8; }
     const app = $('#app');
     app.innerHTML = `
       <nav class="sidebar">
-        <div class="sidebar-brand">ezAuth</div>
-        <a data-nav="overview" onclick="location.hash='#overview'">Overview</a>
-        <a data-nav="users" onclick="location.hash='#users'">Users</a>
-        <a data-nav="tables" onclick="location.hash='#tables'">Tables</a>
-        <a data-nav="buckets" onclick="location.hash='#buckets'">Buckets</a>
-        <a data-nav="oauth" onclick="location.hash='#oauth'">OAuth</a>
-        <a class="logout" id="logout-btn">Logout</a>
+        <a class="sidebar-brand" onclick="location.hash='#overview'">ezAuth<span class="brand-tag">console</span></a>
+        <div class="nav-group">
+          <a data-nav="overview" onclick="location.hash='#overview'">${ICONS.overview}Overview</a>
+          <a data-nav="users" onclick="location.hash='#users'">${ICONS.users}Users</a>
+          <a data-nav="tables" onclick="location.hash='#tables'">${ICONS.tables}Tables</a>
+          <a data-nav="buckets" onclick="location.hash='#buckets'">${ICONS.buckets}Buckets</a>
+          <a data-nav="oauth" onclick="location.hash='#oauth'">${ICONS.oauth}OAuth</a>
+        </div>
+        <a class="logout" id="logout-btn">${ICONS.logout}Logout</a>
       </nav>
-      <main class="content" id="main">${contentHTML}</main>
+      <main class="content"><div class="page-wrap" id="main">${contentHTML}</div></main>
     `;
     setActive(activePage);
     $('#logout-btn').onclick = clearSession;
@@ -218,23 +279,22 @@ button:hover, .btn:hover { opacity: 0.8; }
     const app = $('#app');
     app.innerHTML = `
       <div class="login-page">
+        <canvas id="bg" aria-hidden="true"></canvas>
         <div class="login-card">
-          <h1>ezAuth</h1>
+          <h1>ezAuth<span>.</span></h1>
+          <p class="login-sub">Sign in to the console with your admin email.</p>
           <p id="login-error" class="error hidden"></p>
           <div id="email-step">
             <label for="login-email">Email</label>
             <input type="email" id="login-email" placeholder="admin@example.com" autofocus>
-            <div style="margin-top:20px">
-              <button id="send-code-btn" style="width:100%">Send Code</button>
-            </div>
+            <button id="send-code-btn">Send sign-in code</button>
+            <p class="login-hint">We'll email you a one-time code. No password needed.</p>
           </div>
           <div id="code-step" class="hidden">
-            <label for="login-code">Code</label>
+            <label for="login-code">One-time code</label>
             <input type="text" id="login-code" placeholder="123456" maxlength="6" inputmode="numeric">
-            <div style="margin-top:20px">
-              <button id="verify-code-btn" style="width:100%">Verify</button>
-            </div>
-            <p style="text-align:center;margin-top:12px;"><a id="back-to-email" style="color:#3498db;cursor:pointer;font-size:14px;">Back</a></p>
+            <button id="verify-code-btn">Verify &amp; sign in</button>
+            <button class="back-btn" id="back-to-email">&larr; Use a different email</button>
           </div>
         </div>
       </div>
@@ -249,6 +309,10 @@ button:hover, .btn:hover { opacity: 0.8; }
       $('#code-step').classList.add('hidden');
       $('#login-error').classList.add('hidden');
     };
+
+    const s = document.createElement('script');
+    s.src = '/isolife.js';
+    document.body.appendChild(s);
   }
 
   async function doSendCode() {
@@ -258,7 +322,7 @@ button:hover, .btn:hover { opacity: 0.8; }
     if (!email) { errEl.textContent = 'Email is required.'; errEl.classList.remove('hidden'); return; }
 
     btn.disabled = true;
-    btn.textContent = 'Sending...';
+    btn.textContent = 'Sending…';
     errEl.classList.add('hidden');
 
     try {
@@ -276,7 +340,7 @@ button:hover, .btn:hover { opacity: 0.8; }
       errEl.classList.remove('hidden');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Send Code';
+      btn.textContent = 'Send sign-in code';
     }
   }
 
@@ -288,7 +352,7 @@ button:hover, .btn:hover { opacity: 0.8; }
     if (!code) { errEl.textContent = 'Enter the code from your email.'; errEl.classList.remove('hidden'); return; }
 
     btn.disabled = true;
-    btn.textContent = 'Verifying...';
+    btn.textContent = 'Verifying…';
     errEl.classList.add('hidden');
 
     try {
@@ -308,14 +372,14 @@ button:hover, .btn:hover { opacity: 0.8; }
       errEl.classList.remove('hidden');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Verify';
+      btn.textContent = 'Verify & sign in';
     }
   }
 
   // ── Overview ──
 
   function renderOverview() {
-    renderShell('overview', '<h2>Overview</h2><div class="loading"><span class="spinner"></span> Loading...</div>');
+    renderShell('overview', '<h2>Overview</h2><div class="loading"><span class="spinner"></span>Loading…</div>');
     loadOverview();
   }
 
@@ -342,13 +406,32 @@ button:hover, .btn:hover { opacity: 0.8; }
       const objectBytes = objectStorage ? (objectStorage.used_bytes ?? objectStorage.total_bytes ?? objectStorage.bytes ?? 0) : null;
 
       setContent(`
-        <h2>Overview</h2>
+        <div class="page-header">
+          <div><h2>Overview</h2><p class="page-sub">Your application at a glance.</p></div>
+        </div>
         <div class="stat-grid">
           <div class="stat-card"><div class="label">Users</div><div class="value">${userCount}</div></div>
           <div class="stat-card"><div class="label">Tables</div><div class="value">${tableCount}</div></div>
           <div class="stat-card"><div class="label">Buckets</div><div class="value">${bucketCount}</div></div>
           ${tableBytes != null ? `<div class="stat-card"><div class="label">Table Storage</div><div class="value">${formatBytes(tableBytes)}</div></div>` : ''}
           ${objectBytes != null ? `<div class="stat-card"><div class="label">Object Storage</div><div class="value">${formatBytes(objectBytes)}</div></div>` : ''}
+        </div>
+        <div class="form-card">
+          <h3>Resources</h3>
+          <div class="res-grid">
+            <a class="res-link" href="/docs/">
+              <div class="res-title"><span>Documentation</span><span>&rarr;</span></div>
+              <div class="res-desc">Guides, flows, and SDK references</div>
+            </a>
+            <a class="res-link" href="https://api.ezauth.org/docs">
+              <div class="res-title"><span>API Explorer</span><span>&rarr;</span></div>
+              <div class="res-desc">Interactive REST API reference</div>
+            </a>
+            <a class="res-link" href="/bots/">
+              <div class="res-title"><span>Bot Authentication</span><span>&rarr;</span></div>
+              <div class="res-desc">Ed25519 key-pair auth for services</div>
+            </a>
+          </div>
         </div>
       `);
     } catch(e) {
@@ -362,7 +445,7 @@ button:hover, .btn:hover { opacity: 0.8; }
   const USERS_LIMIT = 50;
 
   function renderUsers() {
-    renderShell('users', '<h2>Users</h2><div class="loading"><span class="spinner"></span> Loading...</div>');
+    renderShell('users', '<h2>Users</h2><div class="loading"><span class="spinner"></span>Loading…</div>');
     usersPage = 0;
     loadUsers();
   }
@@ -376,26 +459,29 @@ button:hover, .btn:hover { opacity: 0.8; }
       const total = res.total != null ? res.total : '?';
 
       let html = `
-        <div class="page-header"><h2>Users</h2><button id="create-user-toggle" class="btn btn-sm">Create User</button></div>
+        <div class="page-header">
+          <div><h2>Users</h2><p class="page-sub">Everyone signed up to your application.</p></div>
+          <button id="create-user-toggle" class="btn btn-sm">Create User</button>
+        </div>
         <div id="create-user-form" class="form-card hidden">
           <h3>Create User</h3>
           <p id="create-user-error" class="error hidden"></p>
           <div class="inline-form">
             <div style="flex:1"><label>Email</label><input type="email" id="new-user-email" placeholder="user@example.com"></div>
             <div style="flex:1"><label>Password (optional)</label><input type="password" id="new-user-password" placeholder="Leave blank for magic link only"></div>
-            <button id="create-user-btn" style="margin-top:20px">Create</button>
+            <button id="create-user-btn">Create</button>
           </div>
         </div>
         <div class="search-form">
-          <input type="text" id="user-search" placeholder="Search by email..." value="${esc(email || '')}">
-          <button id="user-search-btn">Search</button>
+          <input type="text" id="user-search" placeholder="Search by email…" value="${esc(email || '')}">
+          <button id="user-search-btn" class="btn-sm">Search</button>
         </div>
       `;
 
       if (users.length === 0) {
         html += '<p class="empty">No users found.</p>';
       } else {
-        html += `<table><thead><tr><th>Email</th><th>Verified</th><th>Created</th></tr></thead><tbody>`;
+        html += `<table><thead><tr><th>Email</th><th>Status</th><th>Created</th></tr></thead><tbody>`;
         for (const u of users) {
           html += `<tr>
             <td>${esc(u.email)}</td>
@@ -458,7 +544,7 @@ button:hover, .btn:hover { opacity: 0.8; }
   // ── Tables ──
 
   function renderTables() {
-    renderShell('tables', '<h2>Tables</h2><div class="loading"><span class="spinner"></span> Loading...</div>');
+    renderShell('tables', '<h2>Tables</h2><div class="loading"><span class="spinner"></span>Loading…</div>');
     loadTables();
   }
 
@@ -468,13 +554,16 @@ button:hover, .btn:hover { opacity: 0.8; }
       const tables = res.tables || res || [];
 
       let html = `
-        <div class="page-header"><h2>Tables</h2><button id="create-table-toggle" class="btn btn-sm">Create Table</button></div>
+        <div class="page-header">
+          <div><h2>Tables</h2><p class="page-sub">User-scoped custom tables with typed columns.</p></div>
+          <button id="create-table-toggle" class="btn btn-sm">Create Table</button>
+        </div>
         <div id="create-table-form" class="form-card hidden">
           <h3>Create Table</h3>
           <p id="create-table-error" class="error hidden"></p>
           <div class="inline-form">
             <div style="flex:1"><label>Name</label><input type="text" id="new-table-name" placeholder="my_table"></div>
-            <button id="create-table-btn" style="margin-top:20px">Create</button>
+            <button id="create-table-btn">Create</button>
           </div>
         </div>
       `;
@@ -526,7 +615,7 @@ button:hover, .btn:hover { opacity: 0.8; }
   // ── Table Detail ──
 
   function renderTableDetail(id) {
-    renderShell('tables', '<div class="loading"><span class="spinner"></span> Loading...</div>');
+    renderShell('tables', '<div class="loading"><span class="spinner"></span>Loading…</div>');
     loadTableDetail(id);
   }
 
@@ -537,7 +626,9 @@ button:hover, .btn:hover { opacity: 0.8; }
 
       let html = `
         <a class="back-link" onclick="location.hash='#tables'">&larr; Back to Tables</a>
-        <div class="page-header"><h2>${esc(table.name)}</h2></div>
+        <div class="page-header">
+          <div><h2>${esc(table.name)}</h2><p class="page-sub">Define columns, then browse the rows stored in this table.</p></div>
+        </div>
 
         <div class="form-card">
           <h3>Columns</h3>
@@ -547,16 +638,16 @@ button:hover, .btn:hover { opacity: 0.8; }
               <td>${esc(c.name)}</td>
               <td><span class="tag">${esc(c.type)}</span></td>
               <td>${c.required ? 'Yes' : 'No'}</td>
-              <td><button class="btn btn-sm btn-danger delete-col-btn" data-col-id="${esc(c.id)}">Delete</button></td>
+              <td style="text-align:right"><button class="btn btn-sm btn-danger delete-col-btn" data-col-id="${esc(c.id)}">Delete</button></td>
             </tr>`).join('')}
           </tbody></table>`}
 
-          <div style="margin-top:16px">
+          <div style="margin-top:24px">
             <h3>Add Column</h3>
             <p id="add-col-error" class="error hidden"></p>
             <div class="inline-form">
-              <div><label>Name</label><input type="text" id="col-name" placeholder="column_name"></div>
-              <div><label>Type</label>
+              <div style="flex:1"><label>Name</label><input type="text" id="col-name" placeholder="column_name"></div>
+              <div style="flex:1"><label>Type</label>
                 <select id="col-type">
                   <option value="text">text</option>
                   <option value="integer">integer</option>
@@ -565,14 +656,14 @@ button:hover, .btn:hover { opacity: 0.8; }
                   <option value="json">json</option>
                 </select>
               </div>
-              <button id="add-col-btn" style="margin-top:20px">Add</button>
+              <button id="add-col-btn">Add</button>
             </div>
           </div>
         </div>
 
         <div class="form-card">
           <h3>Rows</h3>
-          <div id="rows-container"><div class="loading"><span class="spinner"></span> Loading rows...</div></div>
+          <div id="rows-container"><div class="loading"><span class="spinner"></span>Loading rows…</div></div>
         </div>
       `;
 
@@ -623,7 +714,7 @@ button:hover, .btn:hover { opacity: 0.8; }
       const nextCursor = res.next_cursor || res.cursor || null;
 
       if (rows.length === 0 && !cursor) {
-        container.innerHTML = '<p class="empty">No rows.</p>';
+        container.innerHTML = '<p class="empty">No rows yet.</p>';
         return;
       }
 
@@ -643,7 +734,7 @@ button:hover, .btn:hover { opacity: 0.8; }
         const data = r.data || r;
         for (const c of cols) {
           const v = data[c];
-          html += `<td>${v != null ? esc(String(v)) : '<span style="color:#ccc">null</span>'}</td>`;
+          html += `<td>${v != null ? esc(String(v)) : '<span style="color:#bbb">null</span>'}</td>`;
         }
         html += `<td>${formatDate(r.created_at)}</td></tr>`;
       }
@@ -668,7 +759,7 @@ button:hover, .btn:hover { opacity: 0.8; }
   // ── Buckets ──
 
   function renderBuckets() {
-    renderShell('buckets', '<h2>Buckets</h2><div class="loading"><span class="spinner"></span> Loading...</div>');
+    renderShell('buckets', '<h2>Buckets</h2><div class="loading"><span class="spinner"></span>Loading…</div>');
     loadBuckets();
   }
 
@@ -678,13 +769,16 @@ button:hover, .btn:hover { opacity: 0.8; }
       const buckets = res.buckets || res || [];
 
       let html = `
-        <div class="page-header"><h2>Buckets</h2><button id="create-bucket-toggle" class="btn btn-sm">Create Bucket</button></div>
+        <div class="page-header">
+          <div><h2>Buckets</h2><p class="page-sub">S3-compatible object storage, isolated per user.</p></div>
+          <button id="create-bucket-toggle" class="btn btn-sm">Create Bucket</button>
+        </div>
         <div id="create-bucket-form" class="form-card hidden">
           <h3>Create Bucket</h3>
           <p id="create-bucket-error" class="error hidden"></p>
           <div class="inline-form">
             <div style="flex:1"><label>Name</label><input type="text" id="new-bucket-name" placeholder="my-bucket"></div>
-            <button id="create-bucket-btn" style="margin-top:20px">Create</button>
+            <button id="create-bucket-btn">Create</button>
           </div>
         </div>
       `;
@@ -734,7 +828,7 @@ button:hover, .btn:hover { opacity: 0.8; }
   // ── Bucket Detail ──
 
   function renderBucketDetail(id) {
-    renderShell('buckets', '<div class="loading"><span class="spinner"></span> Loading...</div>');
+    renderShell('buckets', '<div class="loading"><span class="spinner"></span>Loading…</div>');
     loadBucketDetail(id);
   }
 
@@ -743,10 +837,12 @@ button:hover, .btn:hover { opacity: 0.8; }
       const bucket = await ez.buckets.get(id);
       let html = `
         <a class="back-link" onclick="location.hash='#buckets'">&larr; Back to Buckets</a>
-        <div class="page-header"><h2>${esc(bucket.name)}</h2></div>
+        <div class="page-header">
+          <div><h2>${esc(bucket.name)}</h2><p class="page-sub">Objects stored in this bucket.</p></div>
+        </div>
         <div class="form-card">
           <h3>Objects</h3>
-          <div id="objects-container"><div class="loading"><span class="spinner"></span> Loading objects...</div></div>
+          <div id="objects-container"><div class="loading"><span class="spinner"></span>Loading objects…</div></div>
         </div>
       `;
       setContent(html);
@@ -765,7 +861,7 @@ button:hover, .btn:hover { opacity: 0.8; }
       const nextCursor = res.next_cursor || res.cursor || null;
 
       if (objects.length === 0 && !cursor) {
-        container.innerHTML = '<p class="empty">No objects.</p>';
+        container.innerHTML = '<p class="empty">No objects yet.</p>';
         return;
       }
 
@@ -799,7 +895,7 @@ button:hover, .btn:hover { opacity: 0.8; }
   // ── OAuth ──
 
   function renderOAuth() {
-    renderShell('oauth', '<h2>OAuth Providers</h2><div class="loading"><span class="spinner"></span> Loading...</div>');
+    renderShell('oauth', '<h2>OAuth Providers</h2><div class="loading"><span class="spinner"></span>Loading…</div>');
     loadOAuth();
   }
 
@@ -819,7 +915,10 @@ button:hover, .btn:hover { opacity: 0.8; }
         configured[p.provider || p.name] = p;
       }
 
-      let html = `<h2>OAuth Providers</h2>`;
+      let html = `
+        <div class="page-header">
+          <div><h2>OAuth Providers</h2><p class="page-sub">Let users sign in with their existing accounts.</p></div>
+        </div>`;
 
       // Google
       html += renderProviderForm('google', 'Google', configured.google, [
@@ -846,8 +945,8 @@ button:hover, .btn:hover { opacity: 0.8; }
     let html = `<div class="provider-card">
       <h3>${label}</h3>
       ${existing ? '<span class="badge badge-success">Configured</span>' : '<span class="badge badge-muted">Not configured</span>'}
-      <p id="${provider}-msg" class="hidden" style="margin-top:8px"></p>
-      <div style="margin-top:12px">`;
+      <p id="${provider}-msg" class="hidden" style="margin-top:12px"></p>
+      <div style="margin-top:8px">`;
 
     for (const f of fields) {
       const val = existing ? (existing[f.key] || '') : '';
@@ -861,7 +960,7 @@ button:hover, .btn:hover { opacity: 0.8; }
 
     html += `</div><div class="actions">
       <button class="btn" id="${provider}-save">Save</button>
-      ${existing ? `<button class="btn btn-danger" id="${provider}-delete">Remove</button>` : ''}
+      ${existing ? `<button class="btn btn-danger" id="${provider}-delete">Remove configuration</button>` : ''}
     </div></div>`;
     return html;
   }

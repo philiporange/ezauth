@@ -3,160 +3,409 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="ezAuth — drop-in authentication, user-scoped databases, and S3-compatible object storage for cross-platform apps. $1 per 1,000 users/month.">
 <title>ezAuth — Auth, Database & Storage</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 4 28 26H4z' fill='%23111'/%3E%3C/svg%3E">
 <style>
 :root {
-  --text: #1a1a1a;
-  --muted: #666666;
-  --accent: #000000;
+  --text: #161616;
+  --muted: #5f5f5f;
+  --faint: #8a8a8a;
+  --border: rgba(0, 0, 0, 0.09);
+  --panel: rgba(255, 255, 255, 0.62);
+  --panel-solid: #ffffff;
+  --code-bg: #161616;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
   background: #f8f8f8;
   color: var(--text);
   line-height: 1.6;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  padding: 2rem;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 canvas#bg {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   z-index: 0;
   pointer-events: none;
   display: block;
 }
-.container {
-  max-width: 600px;
-  width: 100%;
+.page {
   position: relative;
   z-index: 1;
-  background: rgba(248, 248, 248, 0.1);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 3rem;
-  border-radius: 2px;
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 0 2rem;
 }
-header { margin-bottom: 4rem; }
-h1 {
-  font-size: 2.8rem;
-  font-weight: 300;
-  letter-spacing: -0.03em;
-  margin-bottom: 0.75rem;
-}
-.tagline {
-  font-size: 1.15rem;
-  color: var(--muted);
-  font-weight: 400;
-}
-.pricing {
-  margin-top: 2rem;
-  padding: 1.25rem 0;
-  border-top: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
-}
-.pricing .price {
-  font-size: 1.5rem;
-  font-weight: 300;
-  letter-spacing: -0.02em;
-}
-.pricing .price strong { font-weight: 600; }
-.pricing .note {
-  margin-top: 0.35rem;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-.specs {
-  margin-bottom: 4rem;
-  list-style: none;
+
+/* ── Nav ── */
+.nav {
   display: flex;
-  flex-direction: column;
-  gap: 1.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.75rem 0;
 }
-.specs li {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-.specs .label {
-  font-size: 0.75rem;
+.wordmark {
+  font-size: 1.3rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-}
-.specs .desc {
-  font-size: 1.05rem;
-  font-weight: 400;
-  color: var(--text);
-}
-.links {
-  display: flex;
-  gap: 2rem;
-  flex-wrap: wrap;
-}
-.links a {
+  letter-spacing: -0.03em;
   text-decoration: none;
   color: var(--text);
-  font-size: 0.85rem;
+}
+.wordmark span { color: var(--faint); font-weight: 300; }
+.nav-links { display: flex; align-items: center; gap: 1.75rem; }
+.nav-links a {
+  font-size: 0.8rem;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s;
-  padding-bottom: 2px;
+  letter-spacing: 0.09em;
+  text-decoration: none;
+  color: var(--muted);
+  transition: color 0.15s;
 }
-.links a:hover { border-color: var(--accent); }
-@media (prefers-reduced-motion: reduce) { canvas#bg { display: none; } }
-@media (max-width: 480px) {
-  h1 { font-size: 2.1rem; }
-  .container { padding: 1rem; }
-  header { margin-bottom: 2.5rem; }
-  .specs { margin-bottom: 2.5rem; }
-  .pricing .price { font-size: 1.25rem; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a.cta {
+  color: #fff;
+  background: var(--text);
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  transition: opacity 0.15s;
+}
+.nav-links a.cta:hover { opacity: 0.82; color: #fff; }
+
+/* ── Panels (frosted over the animation) ── */
+.panel {
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+/* ── Hero ── */
+.hero {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 3rem;
+  align-items: center;
+  padding: 4.5rem 0 4rem;
+}
+.eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 1.25rem;
+}
+h1 {
+  font-size: 3.1rem;
+  font-weight: 300;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  margin-bottom: 1.25rem;
+}
+h1 strong { font-weight: 600; }
+.lede {
+  font-size: 1.12rem;
+  color: var(--muted);
+  max-width: 30rem;
+  margin-bottom: 2rem;
+}
+.hero-ctas { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.btn {
+  display: inline-block;
+  padding: 0.8rem 1.5rem;
+  border-radius: 9px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  transition: opacity 0.15s, background 0.15s;
+}
+.btn-primary { background: var(--text); color: #fff; }
+.btn-primary:hover { opacity: 0.82; }
+.btn-ghost {
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.5);
+}
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.9); }
+
+/* ── Code card ── */
+.code-card {
+  background: var(--code-bg);
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.code-card .code-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  color: #8b8b8b;
+}
+.code-card .code-head::before {
+  content: "";
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #3a3a3a;
+  box-shadow: 14px 0 0 #3a3a3a, 28px 0 0 #3a3a3a;
+  margin-right: 2.2rem;
+}
+.code-card pre {
+  padding: 1.4rem 1.5rem;
+  overflow-x: auto;
+  font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: #e8e8e8;
+}
+.tok-kw { color: #e0bdd0; }
+.tok-str { color: #b3d6e6; }
+.tok-com { color: #6f6f6f; }
+.tok-fn { color: #c2e0d6; }
+
+/* ── Sections ── */
+section { padding: 3.5rem 0; }
+.section-head { margin-bottom: 2.25rem; }
+.section-head h2 {
+  font-size: 1.9rem;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+}
+.section-head p { color: var(--muted); margin-top: 0.35rem; }
+
+/* ── Features ── */
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+.feature {
+  padding: 1.6rem 1.6rem 1.5rem;
+  border-radius: 14px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.feature:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px -20px rgba(0, 0, 0, 0.25);
+}
+.feature .glyph {
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.05);
+  margin-bottom: 1rem;
+}
+.feature .glyph svg { width: 17px; height: 17px; stroke: var(--text); }
+.feature h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.01em;
+}
+.feature p { font-size: 0.9rem; color: var(--muted); }
+.feature a { color: var(--text); }
+
+/* ── Pricing ── */
+.pricing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2.5rem;
+  padding: 2.75rem 3rem;
+  flex-wrap: wrap;
+}
+.pricing .amount {
+  font-size: 3rem;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0.5rem 0 0.75rem;
+}
+.pricing .amount strong { font-weight: 600; }
+.pricing .amount span { font-size: 1.05rem; color: var(--muted); letter-spacing: 0; }
+.pricing .terms { color: var(--muted); font-size: 0.95rem; max-width: 26rem; }
+.pricing .terms li { list-style: none; padding-left: 1.4rem; position: relative; margin-bottom: 0.3rem; }
+.pricing .terms li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0.62em;
+  width: 7px; height: 7px;
+  background: var(--text);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.pricing .price-cta { text-align: right; }
+.pricing .price-cta .fine { margin-top: 0.75rem; font-size: 0.8rem; color: var(--faint); }
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+  padding: 2rem 0 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+footer .fine { font-size: 0.82rem; color: var(--faint); }
+footer .foot-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+footer .foot-links a {
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  text-decoration: none;
+  color: var(--muted);
+}
+footer .foot-links a:hover { color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  canvas#bg { display: none; }
+  html { scroll-behavior: auto; }
+}
+@media (max-width: 920px) {
+  .hero { grid-template-columns: 1fr; padding: 3rem 0; gap: 2.25rem; }
+  .features { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .page { padding: 0 1.25rem; }
+  h1 { font-size: 2.2rem; }
+  .features { grid-template-columns: 1fr; }
+  .nav-links a:not(.cta) { display: none; }
+  .pricing { padding: 2rem 1.5rem; }
+  .pricing .price-cta { text-align: left; }
 }
 </style>
 </head>
 <body>
 <canvas id="bg" aria-hidden="true"></canvas>
-<div class="container">
-  <header>
-    <h1>ezAuth</h1>
-    <p class="tagline">Auth, database, and object storage for your cross-platform apps.</p>
-    <div class="pricing">
-      <p class="price"><strong>$1</strong> per 1,000 users / month</p>
-      <p class="note">Storage above 1 GB billed at $1/GB/month.</p>
+
+<div class="page">
+
+  <nav class="nav">
+    <a class="wordmark" href="/">ezAuth<span>.</span></a>
+    <div class="nav-links">
+      <a href="/docs/">Docs</a>
+      <a href="/bots/">Bots</a>
+      <a href="https://api.ezauth.org/docs">API</a>
+      <a class="cta" href="/dashboard/">Dashboard</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Auth &middot; Database &middot; Storage</p>
+      <h1>User accounts, data, and files. <strong>One API.</strong></h1>
+      <p class="lede">Drop-in authentication with email, OAuth, and magic links &mdash; plus user-scoped tables and S3-compatible object storage, with SDKs for every platform.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="/docs/getting-started.html">Get started</a>
+        <a class="btn btn-ghost" href="https://api.ezauth.org/docs">API explorer</a>
+      </div>
+    </div>
+
+    <div class="code-card" aria-label="Code example">
+      <div class="code-head">app.js</div>
+      <pre><code><span class="tok-kw">import</span> { EZAuth } <span class="tok-kw">from</span> <span class="tok-str">'@ezauth/client'</span>
+
+<span class="tok-kw">const</span> ez = <span class="tok-kw">new</span> <span class="tok-fn">EZAuth</span>({
+  baseUrl: <span class="tok-str">'https://api.ezauth.org'</span>,
+  publishableKey: <span class="tok-str">'pk_live_…'</span>,
+})
+
+<span class="tok-com">// Sign up — verification email sent automatically</span>
+<span class="tok-kw">await</span> ez.auth.<span class="tok-fn">signUp</span>({ email: <span class="tok-str">'ada@lovelace.dev'</span> })
+
+<span class="tok-com">// Sign in with a magic link or password</span>
+<span class="tok-kw">const</span> session = <span class="tok-kw">await</span> ez.auth.<span class="tok-fn">signIn</span>({
+  email: <span class="tok-str">'ada@lovelace.dev'</span>,
+  password: <span class="tok-str">'s3cret'</span>,
+})
+
+<span class="tok-com">// session.access_token — RS256 JWT, verify via JWKS</span></code></pre>
     </div>
   </header>
 
-  <ul class="specs">
-    <li>
-      <span class="label">Authentication</span>
-      <span class="desc">Email, OAuth, magic links, and bot keys</span>
-    </li>
-    <li>
-      <span class="label">Database</span>
-      <span class="desc">User-scoped custom tables with typed columns</span>
-    </li>
-    <li>
-      <span class="label">Storage</span>
-      <span class="desc">S3-compatible object storage with per-user isolation</span>
-    </li>
-  </ul>
+  <section>
+    <div class="section-head">
+      <h2>Everything a user backend needs</h2>
+      <p>One service replaces your auth server, user database, and file store.</p>
+    </div>
+    <div class="features">
+      <div class="feature panel">
+        <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>Authentication</h3>
+        <p>Email + password, magic links, and 6-digit codes. Google and Apple OAuth built in.</p>
+      </div>
+      <div class="feature panel">
+        <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 8V4M8 4h8"/><circle cx="9.5" cy="13" r="0.5" fill="currentColor"/><circle cx="14.5" cy="13" r="0.5" fill="currentColor"/></svg></div>
+        <h3>Bot keys</h3>
+        <p>First-class bot accounts with Ed25519 signatures — no browser required. <a href="/bots/">Learn more</a></p>
+      </div>
+      <div class="feature panel">
+        <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 12c0 1.66 3.13 3 7 3s7-1.34 7-3"/></svg></div>
+        <h3>Database</h3>
+        <p>User-scoped custom tables with typed columns and a query API. No ORM to manage.</p>
+      </div>
+      <div class="feature panel">
+        <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></div>
+        <h3>Storage</h3>
+        <p>S3-compatible object storage with per-user isolation baked in from the start.</p>
+      </div>
+      <div class="feature panel">
+        <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg></div>
+        <h3>SDKs</h3>
+        <p>JavaScript, Python, Swift, and Kotlin clients, plus a CLI that solves proof-of-work for you.</p>
+      </div>
+      <div class="feature panel">
+        <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <h3>Security by default</h3>
+        <p>RS256 JWTs with JWKS, refresh-token rotation, hashcash anti-abuse, and rate limiting.</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="links">
-    <a href="/docs/">Documentation</a>
-    <a href="/bots/">Bots</a>
-    <a href="https://api.ezauth.org/docs">API Explorer</a>
-    <a href="/dashboard/">Dashboard</a>
-  </div>
+  <section>
+    <div class="pricing panel">
+      <div>
+        <p class="eyebrow">Pricing</p>
+        <p class="amount"><strong>$1</strong> <span>per 1,000 users / month</span></p>
+        <ul class="terms">
+          <li>1 GB of object storage included, then $1/GB/month</li>
+          <li>Bots count as users — same price, same access</li>
+          <li>All auth methods, tables, and SDKs included</li>
+        </ul>
+      </div>
+      <div class="price-cta">
+        <a class="btn btn-primary" href="/docs/getting-started.html">Start building</a>
+        <p class="fine">Read the quick start — five minutes to first sign-in.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span class="fine">ezAuth — auth, database &amp; storage</span>
+    <div class="foot-links">
+      <a href="/docs/">Documentation</a>
+      <a href="/bots/">Bots</a>
+      <a href="https://api.ezauth.org/docs">API Explorer</a>
+      <a href="/dashboard/">Dashboard</a>
+    </div>
+  </footer>
+
 </div>
 <script src="/isolife.js"></script>
 </body>
