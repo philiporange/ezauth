@@ -21,6 +21,7 @@ dependencies = [
     "python-jose[cryptography]>=3.3",
     "argon2-cffi>=23.1",
     "loguru>=0.7",
+    "stripe>=12",
     "httpx>=0.28",
     "aiodns>=3.2",
     "jinja2>=3.1",

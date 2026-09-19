@@ -589,3 +589,14 @@ dl { border-top: 1px solid var(--rule); }
   .kv dt { width: auto; }
   .inline-form { flex-direction: column; align-items: stretch; }
 }
+
+/* Billing shares the ledger palette and uses wrapping for payment addresses. */
+.billing-form { max-width: 520px; }
+.billing-checkbox { display: flex; align-items: center; gap: 8px; margin: 18px 0; }
+.billing-checkbox input { width: auto; margin: 0; }
+.billing-notice { padding: 16px; margin-bottom: 24px; border: 1px solid var(--rule); }
+.billing-payment { padding: 20px 0; border-bottom: 1px solid var(--rule); }
+.billing-payment p { margin-bottom: 10px; }
+.billing-address { overflow-wrap: anywhere; }
+.billing-credit { color: var(--ok); }
+.billing-debit { color: var(--danger); }

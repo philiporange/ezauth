@@ -6,6 +6,8 @@ Built with FastAPI, PostgreSQL, Redis, and AWS SES.
 
 ## Features
 
+- **Prepaid billing**: Tenant credit with hourly usage metering, card/PayPal/crypto top-ups, auto-reload, and low-balance alerts
+
 - **Multi-tenant**: Each application gets its own users, keys, sessions, and email config
 - **Email auth**: Signup with verification link, magic link sign-in, password sign-in
 - **RS256 JWTs**: Per-app RSA key pairs with standard JWKS endpoint for offline verification

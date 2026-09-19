@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+{% block title %}Billing: {{ tenant.name }} — ezAuth{% endblock %}
+{% block content %}
+<a class="back-link" href="/dashboard/billing">&larr; Billing</a>
+<div class="page-header"><div><h2>{{ tenant.name }} billing</h2><p class="sub">Prepaid credit for all applications in this tenant.</p></div></div>
+{% if flash %}<p class="billing-notice" role="status">{{ flash }}</p>{% endif %}
+{% if account.paused %}<p class="billing-notice error">Service is paused because your balance is negative. Add credit to bring it back to zero or above and resume your applications.</p>{% endif %}
+<section>
+    <h3>Balance {% include "billing/status.html" %}</h3>
+    <div class="stat-grid">
+        <div class="stat-card"><div class="label">Available credit</div><div class="value">${{ money(account.balance_cents) }}</div></div>
+        <div class="stat-card"><div class="label">Users (including bots)</div><div class="value">{{ usage.users }}</div></div>
+        <div class="stat-card"><div class="label">Storage</div><div class="value">{{ usage.storage_bytes | filesizeformat(binary=true) }}</div><p class="sub">{{ settings.billing_included_storage_bytes | filesizeformat(binary=true) }} included</p></div>
+        <div class="stat-card"><div class="label">Estimated monthly cost</div><div class="value">${{ money(usage.estimated_monthly_cost_cents) }}</div></div>
+    </div>
+    {% if days is not none %}<p class="sub">About {{ days }} days of credit left at current usage.</p>{% endif %}
+</section>
+<section>
+    <h3>Add credit</h3>
+    {% if not providers %}<p class="sub">Payments are not configured.</p>
+    {% elif not can_manage %}<p class="sub">Ask the tenant owner to add credit or update billing settings.</p>
+    {% else %}
+    <form method="post" action="/dashboard/billing/{{ tenant.id }}/topup" class="billing-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="amount_usd">Amount (USD)</label><input id="amount_usd" name="amount_usd" type="number" step="0.01" min="{{ money(settings.billing_min_topup_cents) }}" max="{{ money(settings.billing_max_topup_cents) }}" value="20.00" required>
+        {% if 'stripe' in providers %}<label class="billing-checkbox"><input type="checkbox" name="save_card"> Save card for auto-reload</label>{% endif %}
+        {% if 'crypto' in providers %}<label for="chain">Crypto chain</label><select id="chain" name="chain">{% for chain in settings.crypto_chain_list %}<option value="{{ chain }}">{{ chain }}</option>{% endfor %}</select>{% endif %}
+        <div class="form-actions">
+            {% if 'stripe' in providers %}<button name="method" value="stripe">Pay by card</button>{% endif %}
+            {% if 'paypal' in providers %}<button name="method" value="paypal">Pay with PayPal</button>{% endif %}
+            {% if 'crypto' in providers %}<button name="method" value="crypto">Pay with crypto</button>{% endif %}
+        </div>
+    </form>{% endif %}
+</section>
+{% if pending %}<section>
+    <h3>Pending crypto payments</h3>
+    {% for payment in pending %}<div class="billing-payment">
+        <p><strong>{{ payment.details.chain }}</strong> &middot; ${{ money(payment.amount_cents) }}</p>
+        <p>Send exactly <strong class="mono">{{ payment.details.amount_native }}</strong> native currency.</p>
+        <p class="mono billing-address">{{ payment.details.address }} <button type="button" class="copy-btn" data-copy="{{ payment.details.address }}">Copy</button></p>
+        <p class="sub">Expires {{ payment.details.expires_at }}</p>
+        {% if can_manage %}<form method="post" action="/dashboard/billing/{{ tenant.id }}/payments/{{ payment.id }}/check"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="form-actions"><button>Check status</button></div></form>{% endif %}
+    </div>{% endfor %}
+</section>{% endif %}
+<section>
+    <h3>Auto-reload and alerts</h3>
+    {% if account.stripe_payment_method_id %}<p>Saved card: {{ account.card_brand or 'Card' }} ending in {{ account.card_last4 }}</p>
+        {% if can_manage %}<form method="post" action="/dashboard/billing/{{ tenant.id }}/card/remove"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="form-actions"><button class="btn-danger">Remove card</button></div></form>{% endif %}
+    {% else %}<p class="sub">Save a card during a card top-up before auto-reload can work.</p>{% endif %}
+    {% if can_manage %}<form method="post" action="/dashboard/billing/{{ tenant.id }}/settings" class="billing-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="billing-checkbox"><input type="checkbox" name="email_warnings" {% if account.email_warnings %}checked{% endif %}> Email low-balance and reload-failure alerts</label>
+        <label for="low_balance_threshold">Low-balance threshold (USD)</label><input id="low_balance_threshold" name="low_balance_threshold" type="number" step="0.01" min="0" value="{{ money(account.low_balance_threshold_cents) }}" required>
+        <label class="billing-checkbox"><input type="checkbox" name="auto_reload_enabled" {% if account.auto_reload_enabled %}checked{% endif %}> Automatically reload my saved card</label>
+        <label for="auto_reload_threshold">Reload when balance falls below (USD)</label><input id="auto_reload_threshold" name="auto_reload_threshold" type="number" step="0.01" min="0" value="{{ money(account.auto_reload_threshold_cents) }}" required>
+        <label for="auto_reload_amount">Reload amount (USD)</label><input id="auto_reload_amount" name="auto_reload_amount" type="number" step="0.01" min="{{ money(settings.billing_min_topup_cents) }}" max="{{ money(settings.billing_max_topup_cents) }}" value="{{ money(account.auto_reload_amount_cents) }}" required>
+        <div class="form-actions"><button>Save settings</button></div>
+    </form>{% endif %}
+</section>
+{% if auth.is_super %}<section>
+    <h3>Adjust balance</h3>
+    <form method="post" action="/dashboard/billing/{{ tenant.id }}/adjust" class="billing-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="adjust_amount">Signed amount (USD)</label><input id="adjust_amount" name="amount_usd" type="number" step="0.01" required>
+        <label for="description">Description</label><input id="description" name="description" maxlength="255" required>
+        <div class="form-actions"><button>Adjust balance</button></div>
+    </form>
+</section>{% endif %}
+<section>
+    <h3>History</h3>
+    {% if history %}<table><thead><tr><th>Date</th><th>Kind</th><th>Description</th><th>Amount</th><th>Balance after</th></tr></thead><tbody>
+        {% for row in history %}<tr><td>{{ row.created_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ row.kind }}</td><td>{{ row.description }}</td><td class="{{ 'billing-credit' if row.amount_cents >= 0 else 'billing-debit' }}">{{ '+' if row.amount_cents >= 0 else '-' }}${{ money(row.amount_cents | abs) }}</td><td>${{ money(row.balance_after_cents) }}</td></tr>{% endfor %}
+    </tbody></table>{% else %}<p class="empty">No transactions yet.</p>{% endif %}
+</section>
+{% endblock %}

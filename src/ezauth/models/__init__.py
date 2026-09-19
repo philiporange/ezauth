@@ -1,7 +1,10 @@
+"""Register all ORM tables together for schema creation and migrations."""
+
 from ezauth.models.application import Application
 from ezauth.models.application_key import ApplicationKey
 from ezauth.models.audit_log import AuditLog
 from ezauth.models.auth_attempt import AuthAttempt
+from ezauth.models.billing import BillingAccount, BillingPayment, BillingTransaction
 from ezauth.models.bucket import Bucket
 from ezauth.models.custom_column import CustomColumn
 from ezauth.models.custom_row import CustomRow
@@ -17,5 +20,5 @@ from ezauth.models.user import User
 __all__ = [
     "Tenant", "Application", "User", "AuthAttempt", "Session", "Domain", "AuditLog",
     "CustomTable", "CustomColumn", "CustomRow", "Bucket", "StorageObject", "OAuthIdentity",
-    "EmailTemplate", "ApplicationKey",
+    "EmailTemplate", "ApplicationKey", "BillingAccount", "BillingPayment", "BillingTransaction",
 ]

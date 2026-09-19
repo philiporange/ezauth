@@ -9,6 +9,8 @@
     <a href="/dashboard/applications/new" class="btn">New application</a>
 </div>
 
+{% if paused_tenants %}<p class="billing-notice error">Some of your tenants are paused because their credit ran out. <a href="/dashboard/billing">Add credit in Billing</a>.</p>{% endif %}
+
 <div class="stat-grid">
     <div class="stat-card">
         <div class="label">Tenants</div>

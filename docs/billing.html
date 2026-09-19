@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Billing - ezAuth Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">ezAuth<span>docs</span></a>
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <nav>
+    <a href="index.html">Docs</a>
+    <a href="api-reference.html">API</a>
+    <a href="https://github.com/nicholasgriffintn/ezauth">GitHub</a>
+  </nav>
+</header>
+
+<aside class="sidebar">
+  <div class="section-title">Getting Started</div>
+  <a href="index.html">Overview</a>
+  <a href="getting-started.html">Quick Start</a>
+  <a href="configuration.html">Configuration</a>
+  <a href="deployment.html">Deployment</a>
+  <div class="section-title">Authentication</div>
+  <a href="authentication.html">Auth Flows</a>
+  <a href="oauth.html">OAuth (Google, Apple)</a>
+  <a href="sso.html">Cross-Domain SSO</a>
+  <a href="bot-auth.html">Bot Authentication</a>
+  <div class="section-title">Features</div>
+  <a href="custom-tables.html">Custom Tables</a>
+  <a href="object-storage.html">Object Storage</a>
+  <a href="billing.html" class="active">Billing</a>
+  <div class="section-title">API Reference</div>
+  <a href="api-reference.html">REST API</a>
+  <div class="section-title">SDKs &amp; Clients</div>
+  <a href="sdk-javascript.html">JavaScript</a>
+  <a href="sdk-python.html">Python</a>
+  <a href="sdk-swift.html">Swift</a>
+  <a href="sdk-kotlin.html">Kotlin</a>
+  <a href="server-sdk.html">Python Server SDK</a>
+  <a href="cli.html">CLI</a>
+</aside>
+
+<main class="main">
+  <h1>Billing</h1>
+  <p class="subtitle">Prepay tenant credit, see usage, and add funds from the dashboard or your agent.</p>
+
+  <h2>Credit and pricing</h2>
+  <p>Each tenant shares one balance across its applications. New accounts receive $5 welcome credit by default. Usage is metered hourly, with fractional cents carried forward until a whole cent can be charged. Empty accounts incur no usage charge.</p>
+  <p>Users, including bots, cost $1 per 1,000 users per month. The first 1 GB of object storage per tenant is included; additional storage costs $1 per GB per month. Storage uses 1 GB = 1,073,741,824 bytes. The metering month is 30 days (720 hours).</p>
+  <pre><code>monthly cents = 100 × users / 1000
+              + 100 × max(0, storage_bytes − 1073741824) / 1073741824
+interval cents = monthly cents × elapsed_hours / 720</code></pre>
+  <p>For example, 1,500 users and 3 GB storage cost $1.50 + $2.00 = $3.50 per month. One hour accrues 350 / 720 = about 0.486111 cents. A tenant with 100 users and no storage overage costs $0.10 per month. Usage is sampled at metering time; after an interruption, elapsed time is capped at 31 days.</p>
+
+  <h2>When credit runs out</h2>
+  <p>A negative balance pauses every application in the tenant. Top up to a nonnegative balance to resume. The dashboard, billing API, health checks, and public JWKS endpoint remain available. Usage routes and hosted auth pages return HTTP 402:</p>
+  <pre><code>{
+  "detail": {
+    "error": "billing_paused",
+    "message": "This application's tenant has run out of credit. Top up at https://api.ezauth.org/dashboard/billing."
+  }
+}</code></pre>
+  <p>Pausing blocks requests; it does not delete users or stored objects. Retained users and storage continue to accrue usage charges.</p>
+
+  <h2>Add credit</h2>
+  <p>Open <code>/dashboard/billing</code> and choose a tenant. Pay by card through Stripe Checkout, approve a PayPal payment, or send the exact native amount to the crypto address shown. The default top-up range is $5–$1,000. Available methods depend on the operator's configuration. Supported default crypto chains are Bitcoin, Ethereum, Base, Arbitrum, Optimism, and Polygon.</p>
+  <p>Card payments complete through a verified webhook. PayPal is captured on return or completed through its webhook. Crypto credit is issued only after ezAuth rechecks confirmations.info; a callback alone cannot assert payment. Pending crypto payments can be checked manually and are also polled hourly.</p>
+
+  <h2>Auto-reload and alerts</h2>
+  <p>Select “Save card for auto-reload” during a card top-up, then enable auto-reload in billing settings. By default, ezAuth attempts a $20 card reload when the balance falls below $5. Auto-reload runs before pausing, during metering. A failed reload is retried no more than once per 24 hours; changing the saved card or a successful credit resets that failure marker.</p>
+  <p>Email warnings are optional and default to a $5 threshold. A warning is sent once until a top-up rearms it. Reload failures respect this preference; pause notices and top-up receipts are always sent. You can remove the saved card in the dashboard.</p>
+
+  <h2>Backend billing API</h2>
+  <p>Use an application's secret key. Every operation is scoped to its tenant and remains accessible while paused. USD values are exact decimal strings; send no more than two decimal places.</p>
+  <h3>Check balance and methods</h3>
+  <pre><code>curl https://api.ezauth.org/v1/billing \
+  -H "Authorization: Bearer sk_live_..."</code></pre>
+  <pre><code>{
+  "balance_cents": 500,
+  "balance_usd": "5",
+  "paused": false,
+  "usage": {"users": 100, "storage_bytes": 0, "estimated_monthly_cost_cents": "10"},
+  "payment_methods": ["stripe", "paypal", "crypto"],
+  "crypto_chains": ["bitcoin", "ethereum", "base", "arbitrum", "optimism", "polygon"]
+}</code></pre>
+  <h3>Create a crypto top-up</h3>
+  <pre><code>curl -X POST https://api.ezauth.org/v1/billing/topups \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{"amount_usd":"20.00","method":"crypto","chain":"base"}'</code></pre>
+  <p>The response includes <code>payment_id</code>, <code>method</code>, <code>status</code>, <code>amount_usd</code>, <code>chain</code>, <code>address</code>, <code>amount_native</code>, and <code>expires_at</code>. Send exactly <code>amount_native</code> on the specified chain before expiry. The returned payment ID identifies the ezAuth top-up.</p>
+  <h3>Poll the top-up</h3>
+  <pre><code>curl https://api.ezauth.org/v1/billing/topups/PAYMENT_ID \
+  -H "Authorization: Bearer sk_live_..."</code></pre>
+  <p>This also checks the crypto provider and applies confirmed credit. Status is <code>pending</code>, <code>completed</code>, <code>failed</code>, or <code>expired</code>. Repeated checks never duplicate credit.</p>
+  <p>To use a browser payment, POST the same amount with <code>method: "stripe"</code> or <code>"paypal"</code>. The response includes a checkout/approval <code>url</code>. Unconfigured methods, unsupported chains, or amounts outside the configured range return HTTP 400.</p>
+  <h3>Read the ledger</h3>
+  <pre><code>curl 'https://api.ezauth.org/v1/billing/transactions?limit=50' \
+  -H "Authorization: Bearer sk_live_..."</code></pre>
+  <p>Returns the newest ledger rows, including signed integer <code>amount_cents</code>, <code>balance_after_cents</code>, description, provider, details, and timestamp. The maximum limit is 200.</p>
+
+  <h2>Operator setup</h2>
+  <p>See <code>.env.example</code> and <code>DEPLOYMENT.md</code> for the Billing settings. Configure only the payment rails you offer. Set <code>BILLING_ENABLED=false</code> to disable metering, pausing, and enforcement.</p>
+  <table>
+    <tr><th>Provider</th><th>Webhook URL and setup</th></tr>
+    <tr><td>Stripe</td><td><code>https://api.ezauth.org/v1/billing/webhooks/stripe</code> — register <code>checkout.session.completed</code> and <code>payment_intent.succeeded</code>; save its signing secret.</td></tr>
+    <tr><td>PayPal</td><td><code>https://api.ezauth.org/v1/billing/webhooks/paypal</code> — register <code>PAYMENT.CAPTURE.COMPLETED</code>; configure the webhook ID for signature verification.</td></tr>
+    <tr><td>Crypto</td><td><code>https://api.ezauth.org/v1/billing/webhooks/crypto</code> — supplied automatically when creating payments.</td></tr>
+  </table>
+  <p>Crypto requires a confirmations.info API key and receive addresses registered via <code>POST /addresses</code>. The provider monitors transfers to those addresses. Choose the correct PayPal sandbox/live environment and set the public base URL before creating payments.</p>
+</main>
+</body>
+</html>

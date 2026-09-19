@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from ezauth.api import admin_auth, objects, tables
-from ezauth.api.backend import jwks, oauth_config, users
+from ezauth.api.backend import billing, jwks, oauth_config, users
 from ezauth.api.backend import keys as be_keys
 from ezauth.api.backend import sessions as be_sessions
 from ezauth.api.frontend import (
@@ -48,3 +48,5 @@ api_router.include_router(be_keys.router, prefix="/v1", tags=["backend-keys"])
 # Unified auth routes (secret key or publishable key + session)
 api_router.include_router(tables.router, prefix="/v1", tags=["tables"])
 api_router.include_router(objects.router, prefix="/v1", tags=["objects"])
+
+api_router.include_router(billing.router, prefix="/v1", tags=["backend-billing"])

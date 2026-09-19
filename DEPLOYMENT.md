@@ -359,3 +359,59 @@ Then restart the service.
 | PostgreSQL | 17.8          |
 | Redis      | 8.0.2         |
 | Caddy      | 2.11.1        |
+
+## Billing
+
+Apply migration 015 before restarting. It creates billing accounts and grants $5
+welcome credit to existing tenants. New accounts receive the configured welcome
+credit. Hourly metering runs inside the app, protected by the Redis `billing:lock`.
+Each tenant is metered in its own transaction; pending crypto payments are polled
+as part of the pass.
+
+Configure the Billing block in `.env` (defaults shown; credentials are placeholders):
+
+```dotenv
+BILLING_ENABLED=true
+BILLING_METERING_INTERVAL_SECONDS=3600
+BILLING_PRICE_PER_1000_USERS_CENTS=100
+BILLING_INCLUDED_STORAGE_BYTES=1073741824
+BILLING_PRICE_PER_GB_STORAGE_CENTS=100
+BILLING_WELCOME_CREDIT_CENTS=500
+BILLING_MIN_TOPUP_CENTS=500
+BILLING_MAX_TOPUP_CENTS=100000
+BILLING_CURRENCY=usd
+STRIPE_SECRET_KEY=
+STRIPE_PUBLISHABLE_KEY=
+STRIPE_WEBHOOK_SECRET=
+PAYPAL_CLIENT_ID=
+PAYPAL_CLIENT_SECRET=
+PAYPAL_ENVIRONMENT=sandbox
+PAYPAL_WEBHOOK_ID=
+CONFIRMATIONS_API_KEY=
+CRYPTO_CHAINS=bitcoin,ethereum,base,arbitrum,optimism,polygon
+```
+
+`CONFIRMATIONS_API_URL` is the existing confirmations.info base URL setting.
+Set `PUBLIC_BASE_URL` to the externally reachable HTTPS API origin. Leaving a
+rail's credentials empty hides it. `BILLING_ENABLED=false` disables metering,
+pausing, and request blocking.
+
+Register these webhook endpoints using your public API origin:
+
+- Stripe: `https://api.ezauth.org/v1/billing/webhooks/stripe` for
+  `checkout.session.completed` and `payment_intent.succeeded`. Copy the signing
+  secret into `STRIPE_WEBHOOK_SECRET`.
+- PayPal: `https://api.ezauth.org/v1/billing/webhooks/paypal` for
+  `PAYMENT.CAPTURE.COMPLETED`. Set `PAYPAL_WEBHOOK_ID` for provider signature
+  verification, and choose matching sandbox/live credentials.
+- Crypto: `https://api.ezauth.org/v1/billing/webhooks/crypto` is passed in each
+  payment creation request; no separate webhook registration is needed.
+
+Crypto requires a confirmations.info API key with receive addresses registered
+via `POST /addresses` for every enabled chain. Payments are credited only after
+an authenticated provider status check, including when callbacks are missed.
+Stripe and PayPal completion are webhook-driven (PayPal also captures on return).
+
+The dashboard at `/dashboard/billing` and secret-key billing API stay accessible
+while a tenant is paused. Verify a sandbox top-up and webhook delivery for each
+configured rail before accepting live payments.

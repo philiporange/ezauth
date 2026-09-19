@@ -1,0 +1,5 @@
+Your credit is running low
+
+{{tenant_name}} has {{balance}} of credit remaining, below your {{threshold}} alert threshold. Add credit to keep your applications running.
+
+Manage billing: {{billing_url}}

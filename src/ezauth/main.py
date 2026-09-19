@@ -6,7 +6,7 @@ hosted routers, and the static mounts, whose directories are resolved from this
 file so the service runs from any working directory.
 
 The lifespan connects Redis, builds the S3 client and starts the background
-cleanup task, then tears all three down again. `/health` probes Postgres and
+cleanup and billing tasks, then tears them down again. `/health` probes Postgres and
 Redis and answers 503 when either is unreachable, so a load balancer stops
 sending traffic to an instance that cannot serve it; `/live` stays cheap for
 liveness checks that must not depend on a backing service. Unhandled errors are
@@ -58,6 +58,7 @@ async def lifespan(app: FastAPI):
     await init_redis()
     logger.info("Redis connected")
 
+    from ezauth.services.billing import metering_loop
     from ezauth.services.cleanup import cleanup_loop
     from ezauth.services.objects import create_s3_client
 
@@ -66,9 +67,16 @@ async def lifespan(app: FastAPI):
         logger.info("S3 client initialized")
 
     app.state.cleanup_task = asyncio.create_task(cleanup_loop())
+    app.state.billing_task = (
+        asyncio.create_task(metering_loop()) if settings.billing_enabled else None
+    )
 
     yield
 
+    if app.state.billing_task is not None:
+        app.state.billing_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await app.state.billing_task
     app.state.cleanup_task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await app.state.cleanup_task

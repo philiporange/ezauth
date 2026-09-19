@@ -115,6 +115,7 @@ async def resolve_application(
         app = result.scalars().first()
         if app is None:
             raise HTTPException(status_code=401, detail="Invalid publishable key")
+        await ensure_billing_active(db, app)
         return app
 
     # Fallback: Host-based domain lookup
@@ -130,6 +131,7 @@ async def resolve_application(
             )
             app = app_result.scalars().first()
             if app:
+                await ensure_billing_active(db, app)
                 return app
 
     raise HTTPException(status_code=401, detail="Could not resolve application")
@@ -176,7 +178,7 @@ async def _try_admin_jwt(db: AsyncSession, token: str) -> Application | None:
     return app
 
 
-async def require_secret_key(
+async def _resolve_secret_key_app(
     db: DbSession,
     authorization: str | None = Header(None),
 ) -> Application:
@@ -202,6 +204,43 @@ async def require_secret_key(
     raise HTTPException(status_code=401, detail="Invalid secret key")
 
 
+async def ensure_billing_active(db: AsyncSession, app: Application) -> None:
+    """Block tenant usage while keeping payment and key discovery available."""
+    from ezauth.services import billing
+
+    if await billing.is_paused(db, app):
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "billing_paused",
+                "message": (
+                    "This application's tenant has run out of credit. Top up at "
+                    f"{settings.public_base_url}/dashboard/billing."
+                ),
+            },
+        )
+
+
+async def require_secret_key(
+    db: DbSession,
+    authorization: str | None = Header(None),
+) -> Application:
+    app = await _resolve_secret_key_app(db, authorization)
+    await ensure_billing_active(db, app)
+    return app
+
+
+async def require_billing_secret_key(
+    db: DbSession,
+    authorization: str | None = Header(None),
+) -> Application:
+    """Billing remains reachable with an application secret even when paused."""
+    if not authorization or not authorization.startswith("Bearer sk_"):
+        raise HTTPException(status_code=401, detail="Missing secret key")
+    return await _resolve_secret_key_app(db, authorization)
+
+
+BillingApp = Annotated[Application, Depends(require_billing_secret_key)]
 SecretKeyApp = Annotated[Application, Depends(require_secret_key)]
 
 
@@ -294,6 +333,7 @@ async def resolve_app_auth(
         app = result.scalars().first()
         if app is None:
             raise HTTPException(status_code=401, detail="Invalid secret key")
+        await ensure_billing_active(db, app)
         return AppAuth(app=app)
 
     if (
@@ -303,6 +343,7 @@ async def resolve_app_auth(
     ):
         admin_app = await _try_admin_jwt(db, authorization[7:])
         if admin_app is not None:
+            await ensure_billing_active(db, admin_app)
             return AppAuth(app=admin_app)
 
     app = await resolve_application(db, request, x_publishable_key)

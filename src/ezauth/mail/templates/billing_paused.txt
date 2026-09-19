@@ -1,0 +1,5 @@
+Your service is paused
+
+{{tenant_name}} has run out of prepaid credit. Your current balance is {{balance}}. Top up to restore your applications.
+
+Manage billing: {{billing_url}}

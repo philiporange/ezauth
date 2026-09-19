@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block title %}Billing — ezAuth{% endblock %}
+{% block content %}
+<div class="page-header"><div><h2>Billing</h2><p class="sub">Prepaid credit across your tenants.</p></div></div>
+{% if rows %}
+<table>
+    <thead><tr><th>Tenant</th><th>Balance</th><th>Status</th><th>Estimated monthly cost</th></tr></thead>
+    <tbody>{% for tenant, account, usage in rows %}
+        <tr><td><a href="/dashboard/billing/{{ tenant.id }}">{{ tenant.name }}</a></td>
+            <td>${{ money(account.balance_cents) }}</td>
+            <td>{% include "billing/status.html" %}</td>
+            <td>${{ money(usage.estimated_monthly_cost_cents) }}</td></tr>
+    {% endfor %}</tbody>
+</table>
+{% else %}<p class="empty">No tenants yet.</p>{% endif %}
+{% endblock %}

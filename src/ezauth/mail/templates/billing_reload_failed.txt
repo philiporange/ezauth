@@ -1,0 +1,5 @@
+Your auto-reload failed
+
+We could not reload credit for {{tenant_name}}. Your balance is {{balance}}. Check your saved card or add credit using another payment method.
+
+Manage billing: {{billing_url}}

@@ -1,0 +1,3 @@
+{% if account.paused %}<span class="badge badge-danger">Paused</span>
+{% elif account.balance_cents < account.low_balance_threshold_cents %}<span class="badge badge-warning">Low</span>
+{% else %}<span class="badge badge-success">Active</span>{% endif %}

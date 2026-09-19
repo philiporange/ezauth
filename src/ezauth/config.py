@@ -126,6 +126,50 @@ class Settings(BaseSettings):
     expired_session_retention_days: int = 30
     audit_log_retention_days: int = 365
 
+    # Billing: prepaid cents; disabling this bypasses metering and enforcement.
+    billing_enabled: bool = True
+    billing_metering_interval_seconds: int = 3600
+    billing_price_per_1000_users_cents: int = 100
+    billing_included_storage_bytes: int = 1073741824
+    billing_price_per_gb_storage_cents: int = 100
+    billing_welcome_credit_cents: int = 500
+    billing_min_topup_cents: int = 500
+    billing_max_topup_cents: int = 100000
+    billing_currency: str = "usd"
+
+    # Empty credentials disable the corresponding payment rail.
+    stripe_secret_key: str = ""
+    stripe_publishable_key: str = ""
+    stripe_webhook_secret: str = ""
+    paypal_client_id: str = ""
+    paypal_client_secret: str = ""
+    paypal_environment: str = "sandbox"  # sandbox | live
+    paypal_webhook_id: str = ""
+    confirmations_api_key: str = ""
+    crypto_chains: str = "bitcoin,ethereum,base,arbitrum,optimism,polygon"
+
+    @property
+    def stripe_configured(self) -> bool:
+        return bool(self.stripe_secret_key)
+
+    @property
+    def paypal_configured(self) -> bool:
+        return bool(self.paypal_client_id and self.paypal_client_secret)
+
+    @property
+    def crypto_configured(self) -> bool:
+        return bool(self.confirmations_api_key)
+
+    @property
+    def crypto_chain_list(self) -> list[str]:
+        return [chain.strip() for chain in self.crypto_chains.split(",") if chain.strip()]
+
+    @property
+    def paypal_api_base(self) -> str:
+        if self.paypal_environment == "live":
+            return "https://api-m.paypal.com"
+        return "https://api-m.sandbox.paypal.com"
+
     @property
     def is_production(self) -> bool:
         return self.environment.strip().lower() in ("production", "prod")

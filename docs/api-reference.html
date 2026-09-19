@@ -34,6 +34,7 @@
   <div class="section-title">Features</div>
   <a href="custom-tables.html">Custom Tables</a>
   <a href="object-storage.html">Object Storage</a>
+  <a href="billing.html">Billing</a>
   <div class="section-title">API Reference</div>
   <a href="api-reference.html" class="active">REST API</a>
   <div class="section-title">SDKs &amp; Clients</div>
@@ -629,6 +630,15 @@
     }
   ]
 }</code></pre>
+  <h2 id="billing">Billing</h2>
+  <p>These tenant-scoped routes require an application's secret key and remain available while paused. See <a href="billing.html">Billing</a> for request and response examples.</p>
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td>GET</td><td><code>/v1/billing</code></td><td>Balance, pause status, usage, and available payment methods.</td></tr>
+    <tr><td>POST</td><td><code>/v1/billing/topups</code></td><td>Create a top-up with amount_usd, method, and optional crypto chain.</td></tr>
+    <tr><td>GET</td><td><code>/v1/billing/topups/{payment_id}</code></td><td>Read status; crypto requests also check the provider and apply confirmed credit.</td></tr>
+    <tr><td>GET</td><td><code>/v1/billing/transactions?limit=50</code></td><td>Newest ledger rows (maximum limit 200).</td></tr>
+  </table>
 </main>
 </body>
 </html>

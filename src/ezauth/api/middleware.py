@@ -111,6 +111,8 @@ async def origin_allowed(path: str, origin: str) -> bool:
 
 class CORSPolicyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if request.url.path.startswith("/v1/billing/webhooks/"):
+            return await call_next(request)
         origin = request.headers.get("origin", "")
         is_preflight = (
             request.method == "OPTIONS" and "access-control-request-method" in request.headers

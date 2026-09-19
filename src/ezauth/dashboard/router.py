@@ -10,6 +10,7 @@ from fastapi import APIRouter
 from ezauth.dashboard import (
     applications,
     auth,
+    billing,
     buckets,
     domains,
     email_templates,
@@ -32,3 +33,5 @@ dashboard_router.include_router(
     email_templates.router, prefix="/email-templates", tags=["dashboard-email"]
 )
 dashboard_router.include_router(buckets.router, prefix="/buckets", tags=["dashboard-buckets"])
+
+dashboard_router.include_router(billing.router, prefix="/billing", tags=["dashboard-billing"])

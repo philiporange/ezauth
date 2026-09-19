@@ -23,6 +23,7 @@
             <a href="/dashboard/domains" {% if path.startswith('/dashboard/domains') %}class="active"{% endif %}>Domains</a>
             <a href="/dashboard/users" {% if path.startswith('/dashboard/users') %}class="active"{% endif %}>Users</a>
             <a href="/dashboard/buckets" {% if path.startswith('/dashboard/buckets') %}class="active"{% endif %}>Storage</a>
+            <a href="/dashboard/billing" {% if path.startswith('/dashboard/billing') %}class="active"{% endif %}>Billing</a>
             {% if auth and auth.is_super %}
             <a href="/dashboard/email-templates" {% if path.startswith('/dashboard/email-templates') %}class="active"{% endif %}>Email Templates</a>
             {% endif %}

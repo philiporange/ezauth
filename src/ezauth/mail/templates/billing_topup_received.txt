@@ -1,0 +1,5 @@
+Your top-up was received
+
+We added {{amount}} of credit to {{tenant_name}}. Your new balance is {{balance}}.
+
+Manage billing: {{billing_url}}

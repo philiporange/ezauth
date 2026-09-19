@@ -5,10 +5,12 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ezauth.config import settings
 from ezauth.dashboard.auth import DashboardAuth, require_dashboard_auth, templates
 from ezauth.dashboard.scope import owned_app_ids, scope_applications, scope_tenants
 from ezauth.dependencies import get_db
 from ezauth.models.application import Application
+from ezauth.models.billing import BillingAccount
 from ezauth.models.storage_object import StorageObject
 from ezauth.models.tenant import Tenant
 from ezauth.models.user import User
@@ -41,11 +43,21 @@ async def overview(
     user_count = (await db.execute(user_query)).scalar() or 0
     storage_bytes = (await db.execute(storage_query)).scalar() or 0
 
+    paused_tenants = False
+    if settings.billing_enabled:
+        paused_tenants = bool(await db.scalar(
+            scope_tenants(select(Tenant.id).join(
+                BillingAccount, BillingAccount.tenant_id == Tenant.id
+            ).where(BillingAccount.paused.is_(True)), auth).limit(1)
+        ))
+
     return templates.TemplateResponse(
-        "overview.html",
-        {
+        request=request,
+        name="overview.html",
+        context={
             "request": request,
             "tenant_count": tenant_count,
+            "paused_tenants": paused_tenants,
             "apps": apps,
             "user_count": user_count,
             "storage_bytes": storage_bytes,
